@@ -1,10 +1,16 @@
 extern crate termion;
 
+use std::io::{Write, stdout, stdin};
+
 use termion::event::{Key};
 use termion::color::{self};
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
-use std::io::{Write, stdout, stdin};
+
+mod typing;
+mod format;
+
+use format::TypingFormat;
 
 
 fn main() {
@@ -28,16 +34,16 @@ fn main() {
 
 
     'game: loop {
-        let material = raw_sentence.to_string();
-        let mut training = material.chars();
-        let mut i_split: usize = 0;
+        let mut typing = typing::new(raw_sentence);
+
 
         write!(stdout,
                "{}{}>>> {}",
                termion::cursor::Goto(1, 3),
                termion::clear::CurrentLine,
-               raw_sentence)
+               typing.highlight_display())
             .unwrap();
+
         write!(stdout,
                "{}{}Status: beginning",
                termion::cursor::Goto(1, 4),
@@ -45,26 +51,20 @@ fn main() {
             .unwrap();
         stdout.flush().unwrap();
 
+
         let stdin = stdin();
         'step: loop {
             let stdin = stdin.lock();
-            let current = match training.next() {
+            let current = match typing.curr_ref() {
                 None => break 'game,
-                Some(c) => c
+                Some(key) => key.code
             };
 
-            let (head, mid_tail) = material.split_at(i_split);
-            let mid_tail = mid_tail.to_string();
-            let (curr, tail) = mid_tail.split_at(current.len_utf16());
             write!(stdout,
-                   "{}{}>>> {}{}[{}]{}{}",
+                   "{}{}>>> {}",
                    termion::cursor::Goto(1, 3),
                    termion::clear::CurrentLine,
-                   head,
-                   color::Bg(color::Green),
-                   curr,
-                   color::Bg(color::Reset),
-                   tail)
+                   typing.highlight_display())
                 .unwrap();
             stdout.flush().unwrap();
 
@@ -76,22 +76,6 @@ fn main() {
                     _ => Err('\0')
                 };
 
-                // copy-paste for discovery ideas
-                let (head, mid_tail) = material.split_at(i_split);
-                let mid_tail = mid_tail.to_string();
-                let (curr, tail) = mid_tail.split_at(current.len_utf16());
-                write!(stdout,
-                       "{}{}>>> {}{}[{}]{}{}",
-                       termion::cursor::Goto(1, 3),
-                       termion::clear::CurrentLine,
-                       head,
-                       color::Bg(color::LightRed),
-                       curr,
-                       color::Bg(color::Reset),
-                       tail)
-                    .unwrap();
-                stdout.flush().unwrap();
-
                 match status {
                     Err('\0') =>
                         write!(stdout,
@@ -99,12 +83,14 @@ fn main() {
                                termion::cursor::Goto(1, 4),
                                termion::clear::CurrentLine)
                             .unwrap(),
-                    Err(_) =>
+                    Err(_) => {
                         write!(stdout,
                                "{}{}Status: missed",
                                termion::cursor::Goto(1, 4),
                                termion::clear::CurrentLine)
-                            .unwrap(),
+                            .unwrap();
+                        typing.miss();
+                    }
                     Ok(c) => {
                         write!(stdout,
                                "{}{}Status: good '{}'",
@@ -112,11 +98,18 @@ fn main() {
                                termion::clear::CurrentLine,
                                c)
                             .unwrap();
-                        i_split = i_split + current.len_utf16();
+                        typing.pass();
+                        typing.forward();
                         break 'input;
                     }
                 }
 
+                write!(stdout,
+                       "{}{}>>> {}",
+                       termion::cursor::Goto(1, 3),
+                       termion::clear::CurrentLine,
+                       typing.highlight_display())
+                    .unwrap();
                 stdout.flush().unwrap();
             }
         }
@@ -124,6 +117,6 @@ fn main() {
 
     // cleanup
     write!(stdout, "{}{}",
-           termion::cursor::Goto(1, 5),
-           termion::cursor::Show).unwrap();
+             termion::cursor::Goto(1, 5),
+             termion::cursor::Show).unwrap();
 }
