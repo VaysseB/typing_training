@@ -1,0 +1,7 @@
+[package]
+name = "TypingTrainer"
+version = "0.1.0"
+authors = ["My name <you@example.com>"]
+
+[dependencies]
+termion = "1.0"
