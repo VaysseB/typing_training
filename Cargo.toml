@@ -1,5 +1,5 @@
 [package]
-name = "TypingTrainer"
+name = "typing_trainer"
 version = "0.1.0"
 authors = ["My name <you@example.com>"]
 
