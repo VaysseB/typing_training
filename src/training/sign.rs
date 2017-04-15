@@ -25,14 +25,14 @@ impl PosToTermConverter for Pos {
 
 
 pub trait SignPrinter<T> where T: Write {
-    fn show(&self, output: &mut T, coord: &Pos);
+    fn show(&self, output: &mut T, current: usize, coord: &Pos);
 }
 
 impl<T> SignPrinter<T> for TypingSequence where T: Write {
-    fn show(&self, output: &mut T, coord: &Pos) {
-        writeln!(output, "{}{}",
-                 coord.term_pos(),
-                 self.colorized()
+    fn show(&self, output: &mut T, current: usize, coord: &Pos) {
+        write!(output, "{}{}",
+               coord.term_pos(),
+               self.colorized(current)
         ).unwrap();
     }
 }

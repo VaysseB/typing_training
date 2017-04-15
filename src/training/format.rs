@@ -9,7 +9,7 @@ use training::sequence::key::Status;
 pub trait TermFormat {
     fn color_of(status: &Status, is_curr: bool) -> String;
 
-    fn colorized(&self) -> String;
+    fn colorized(&self, current: usize) -> String;
 }
 
 impl TermFormat for TypingSequence {
@@ -24,12 +24,12 @@ impl TermFormat for TypingSequence {
         }
     }
 
-    fn colorized(&self) -> String {
+    fn colorized(&self, current: usize) -> String {
         let mut repr = String::new();
 
         // naive solution
         for (i, key) in self.keys.iter().enumerate() {
-            let color = format!("{}{}", Self::color_of(&key.status, i == self.progress), key.code);
+            let color = format!("{}{}", Self::color_of(&key.status, i == current), key.code);
             repr.push_str(color.borrow());
         }
 

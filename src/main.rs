@@ -6,7 +6,6 @@ use std::io::{Write, stdout, stdin};
 use termion::raw::IntoRawMode;
 
 mod training;
-mod game;
 
 
 fn main() {
@@ -16,7 +15,7 @@ fn main() {
     let stdout = stdout.lock();
     let mut stdout = stdout.into_raw_mode().unwrap();
 
-    let raw_sentence = "if this is not in self, then i begin to call rust.";
+    let bucket = vec!["if", "this", "is", "not", "in", "self", "then", "i", "begin", "to", "call", "rust"];
 
     // init setup
     write!(stdout,
@@ -26,17 +25,25 @@ fn main() {
         .unwrap();
     stdout.flush().unwrap();
 
-    'game: loop {
+    {
         use training::sequence::TypingSequence;
+        use training::game::{Exercise, Ending};
         use training::sign::Pos;
 
-        let mut sequence = TypingSequence::new(raw_sentence.to_string());
         let pos = Pos{x: 1, y: 1};
-        {
-            match game::exercise(&mut sequence, || stdin.lock(), &mut stdout, &pos) {
-                game::Status::Aborted => { break 'game },
-                game::Status::Completed => { break 'game }
+        'game: for word in bucket.iter() {
+            let mut typing = TypingSequence::new(word.to_string());
+            let mut exercise = Exercise::new(&mut typing, &pos);
+            match exercise.play(|| stdin.lock(), &mut stdout) {
+                Ending::Aborted => { break 'game },
+                Ending::Completed => {}
             }
+
+            // temporary cleaning while words doesn't have any position
+            use training::sign::PosToTermConverter;
+            write!(stdout, "{}{}",
+                    pos.term_pos(),
+                    termion::clear::CurrentLine).unwrap();
         }
     }
 
