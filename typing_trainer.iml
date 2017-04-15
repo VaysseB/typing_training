@@ -11,8 +11,6 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="Rust &lt;TypingTrainer&gt;" level="project" />
-    <orderEntry type="library" name="Cargo &lt;TypingTrainer&gt;" level="project" />
     <orderEntry type="library" name="Rust &lt;typing_trainer&gt;" level="project" />
     <orderEntry type="library" name="Cargo &lt;typing_trainer&gt;" level="project" />
   </component>

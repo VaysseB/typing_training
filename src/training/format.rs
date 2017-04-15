@@ -7,29 +7,29 @@ use training::sequence::key::Status;
 
 
 pub trait TermFormat {
-    fn colored_repr(&self) -> String;
+    fn color_of(status: &Status, is_curr: bool) -> String;
+
+    fn colorized(&self) -> String;
 }
 
 impl TermFormat for TypingSequence {
-    fn colored_repr(&self) -> String {
+    fn color_of(status: &Status, is_curr: bool) -> String {
+        match status {
+            &Status::Unvalidated => {
+                if is_curr { format!("{}", color::Bg(color::Magenta)) }
+                else { format!("{}", color::Bg(color::Reset)) }
+            },
+            &Status::Missed => format!("{}", color::Bg(color::LightRed)),
+            &Status::Passed => format!("{}", color::Bg(color::Green))
+        }
+    }
+
+    fn colorized(&self) -> String {
         let mut repr = String::new();
 
         // naive solution
         for (i, key) in self.keys.iter().enumerate() {
-            let is_current = i == self.progress;
-            let color = if is_current {
-                match key.status {
-                    Status::Unvalidated => format!("{}{}", color::Bg(color::Magenta), key.code),
-                    Status::Missed => format!("{}{}", color::Bg(color::LightRed), key.code),
-                    Status::Passed => format!("{}{}", color::Bg(color::Green), key.code)
-                }
-            } else {
-                match key.status {
-                    Status::Unvalidated => format!("{}{}", color::Bg(color::Reset), key.code),
-                    Status::Missed => format!("{}{}", color::Bg(color::LightRed), key.code),
-                    Status::Passed => format!("{}{}", color::Bg(color::Green), key.code)
-                }
-            };
+            let color = format!("{}{}", Self::color_of(&key.status, i == self.progress), key.code);
             repr.push_str(color.borrow());
         }
 

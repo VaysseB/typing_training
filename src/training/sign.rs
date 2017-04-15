@@ -50,7 +50,7 @@ impl<T> SignPrinter<T> for TypingSign where T: Write {
     fn show(&self, output: &mut T) {
         writeln!(output, "{}{}",
                  self.coord.term_pos(),
-                 self.seq.colored_repr()
+                 self.seq.colorized()
         ).unwrap();
     }
 }
