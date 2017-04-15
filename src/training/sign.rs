@@ -5,12 +5,7 @@ use termion;
 
 use training::sequence::TypingSequence;
 use training::format::TermFormat;
-
-
-pub struct Pos {
-    pub x: u16,
-    pub y: u16
-}
+use training::positioning::Pos;
 
 
 pub trait PosToTermConverter {

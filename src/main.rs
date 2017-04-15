@@ -15,8 +15,6 @@ fn main() {
     let stdout = stdout.lock();
     let mut stdout = stdout.into_raw_mode().unwrap();
 
-    let bucket = vec!["if", "this", "is", "not", "in", "self", "then", "i", "begin", "to", "call", "rust"];
-
     // init setup
     write!(stdout,
            "{}{}",
@@ -28,10 +26,23 @@ fn main() {
     {
         use training::sequence::TypingSequence;
         use training::game::{Exercise, Ending};
-        use training::sign::Pos;
+        use training::positioning::{Constraint, Window, HAlignment, VAlignment, Positioning};
 
-        let pos = Pos{x: 1, y: 1};
-        'game: for word in bucket.iter() {
+        let bucket = vec!["if", "this", "is", "not", "in", "self", "then", "i", "begin", "to", "call", "rust"]
+            .iter().map(|x| x.to_string()).collect();
+        let constraints = Constraint {
+            win: Window { x: 1, y: 1, h: 3, w: 24 },
+            infinite_height: false,
+            h_align: HAlignment::AlignLeft,
+            v_align: VAlignment::AlignTop
+        };
+        let positions;
+        match constraints.organise(&bucket) {
+            Err(msg) => panic!(msg),
+            Ok(r) => { positions = r; }
+        }
+
+        'game: for (word, pos) in bucket.iter().zip(positions) {
             let mut typing = TypingSequence::new(word.to_string());
             let mut exercise = Exercise::new(&mut typing, &pos);
             match exercise.play(|| stdin.lock(), &mut stdout) {

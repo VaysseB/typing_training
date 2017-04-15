@@ -4,7 +4,8 @@ use termion::event::Key;
 use termion::input::TermRead;
 
 use training::sequence::{TypingSequence, key};
-use training::sign::{Pos, SignPrinter};
+use training::positioning::Pos;
+use training::sign::SignPrinter;
 
 macro_rules! flush {
     ($output:expr) => { $output.flush().unwrap(); }
