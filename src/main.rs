@@ -28,14 +28,12 @@ fn main() {
 
     'game: loop {
         use training::sequence::TypingSequence;
-        use training::sign::TypingSign;
+        use training::sign::Pos;
 
-        let sequence = TypingSequence::new(raw_sentence.to_string());
-        let mut sign = TypingSign::new(sequence);
-        sign.move_(1, 1);
-
+        let mut sequence = TypingSequence::new(raw_sentence.to_string());
+        let pos = Pos{x: 1, y: 1};
         {
-            match game::exercise(&mut sign, || stdin.lock(), &mut stdout) {
+            match game::exercise(&mut sequence, || stdin.lock(), &mut stdout, &pos) {
                 game::Status::Aborted => { break 'game },
                 game::Status::Completed => { break 'game }
             }

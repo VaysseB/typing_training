@@ -12,24 +12,6 @@ pub struct Pos {
     pub y: u16
 }
 
-pub struct TypingSign {
-    pub seq: TypingSequence,
-    pub coord: Pos
-}
-
-impl TypingSign {
-    pub fn new(sequence: TypingSequence) -> TypingSign {
-        TypingSign {
-            seq: sequence,
-            coord: Pos { x: 0, y: 0 }
-        }
-    }
-
-    pub fn move_(&mut self, x: u16, y: u16) {
-        self.coord = Pos{x: x, y: y};
-    }
-}
-
 
 pub trait PosToTermConverter {
     fn term_pos(&self) -> termion::cursor::Goto;
@@ -43,14 +25,14 @@ impl PosToTermConverter for Pos {
 
 
 pub trait SignPrinter<T> where T: Write {
-    fn show(&self, output: &mut T);
+    fn show(&self, output: &mut T, coord: &Pos);
 }
 
-impl<T> SignPrinter<T> for TypingSign where T: Write {
-    fn show(&self, output: &mut T) {
+impl<T> SignPrinter<T> for TypingSequence where T: Write {
+    fn show(&self, output: &mut T, coord: &Pos) {
         writeln!(output, "{}{}",
-                 self.coord.term_pos(),
-                 self.seq.colorized()
+                 coord.term_pos(),
+                 self.colorized()
         ).unwrap();
     }
 }

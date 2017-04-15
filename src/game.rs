@@ -3,7 +3,8 @@ use std::io::{Read, Write};
 use termion::event::Key;
 use termion::input::TermRead;
 
-use training::sign::{TypingSign, SignPrinter};
+use training::sequence::TypingSequence;
+use training::sign::{Pos, SignPrinter};
 
 macro_rules! flush {
     ($output:expr) => { $output.flush().unwrap(); }
@@ -16,17 +17,19 @@ pub enum Status {
 }
 
 pub fn exercise<F, R: Read, W: Write>(
-            sign: &mut TypingSign,
+            seq: &mut TypingSequence,
             input_provider: F,
-            output: &mut W
+            output: &mut W,
+            coord: &Pos
         ) -> Status
         where F: Fn() -> R  {
     let mut output = output;
+    let pos = coord;
 
-    'step: while !sign.seq.is_completed() {
-        let current = sign.seq.curr_ref().unwrap().code;
+    'step: while !seq.is_completed() {
+        let current = seq.curr_ref().unwrap().code;
 
-        sign.show(&mut output);
+        seq.show(&mut output, &pos);
         flush!(output);
 
         let input = input_provider();
@@ -34,18 +37,18 @@ pub fn exercise<F, R: Read, W: Write>(
             match c.unwrap() {
                 Key::Esc => { break 'step }
                 Key::Char(c) if c == current => {
-                    sign.seq.pass();
-                    sign.seq.forward();
+                    seq.pass();
+                    seq.forward();
                     break 'input;
                 }
-                Key::Char(_) => { sign.seq.miss(); }
+                Key::Char(_) => { seq.miss(); }
                 _ => {}
             };
 
-            sign.show(&mut output);
+            seq.show(&mut output, &pos);
             flush!(output);
         }
     }
 
-    if sign.seq.is_completed() { Status::Completed } else { Status::Aborted }
+    if seq.is_completed() { Status::Completed } else { Status::Aborted }
 }
