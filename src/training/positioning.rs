@@ -125,7 +125,7 @@ impl Positioning for Constraint {
             Err(kind) => {
                 match kind {
                     PositioningError::WordIsTooWide(word) =>
-                        Err(format!("too wide to fit '{}'", word)),
+                        Err(format!("too narrow to fit '{}'", word)),
                     PositioningError::TooManyToFit(index) =>
                         Err(format!("too many word, overflow from the {}th", index))
                 }
