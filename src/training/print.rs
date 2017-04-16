@@ -77,16 +77,13 @@ impl<T> WindowPrinter<T> for Window
 pub trait SequencePrinter<T>
     where T: Write {
 
-    fn write_seq(&self, output: &mut T, current: usize, coord: &Pos);
+    fn write_seq(&self, output: &mut T, current: usize, coord: &Pos) -> io::Result<()>;
 }
 
 impl<T> SequencePrinter<T> for TypingSequence
     where T: Write {
 
-    fn write_seq(&self, output: &mut T, current: usize, coord: &Pos) {
-        write!(output, "{}{}",
-               coord.term_pos(),
-               self.colorized(current)
-        ).unwrap();
+    fn write_seq(&self, output: &mut T, current: usize, coord: &Pos) -> io::Result<()> {
+        write!(output, "{}{}", coord.term_pos(), self.colorized(current))
     }
 }
