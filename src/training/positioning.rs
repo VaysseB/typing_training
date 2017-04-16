@@ -55,10 +55,14 @@ impl WindowCorner for Window {
     fn bottom_right(&self) -> Pos { Pos { x: self.x + self.w - 1, y: self.y + self.h - 1 } }
 }
 
+#[allow(dead_code)]
 pub enum HAlignment {
-    AlignLeft
+    AlignLeft,
+    AlignCenter,
+    AlignRight
 }
 
+#[allow(dead_code)]
 pub enum VAlignment {
     AlignTop
 }
@@ -133,10 +137,17 @@ impl Positioning for Constraint {
             Ok(rows) => {
                 let mut planning : Vec<Pos> = Vec::new();
 
+
                 for (dy, measure) in rows.iter().enumerate() {
+                    let start_x = match self.h_align {
+                        HAlignment::AlignLeft => 0,
+                        HAlignment::AlignCenter => (self.win.w - (measure.len as u16)) / 2,
+                        HAlignment::AlignRight => self.win.w - (measure.len as u16)
+                    };
+
                     for dx in measure.sizes.iter() {
                         planning.push(Pos {
-                            x: self.win.x + (*dx as u16),
+                            x: self.win.x + start_x + (*dx as u16),
                             y: self.win.y + (dy as u16)
                         });
                     }

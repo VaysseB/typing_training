@@ -36,7 +36,7 @@ fn main() {
         let mut constraints = Constraint {
             win: Window { x: 2, y: 2, h: 3, w: 24 },
             infinite_height: false,
-            h_align: HAlignment::AlignLeft,
+            h_align: HAlignment::AlignCenter,
             v_align: VAlignment::AlignTop
         };
 
