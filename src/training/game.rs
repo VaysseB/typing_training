@@ -73,6 +73,10 @@ impl<'a> Exercise<'a> {
             }
         }
 
+        // last update after completion
+        self.subject.write_seq(&mut output, self.curr, &self.pos).unwrap();
+        flush!(output).unwrap();
+
         if self.is_done() { Ending::Completed } else { Ending::Aborted }
     }
 }

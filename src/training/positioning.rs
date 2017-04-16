@@ -80,17 +80,19 @@ impl Constraint {
                   -> Result<Vec<DetailMeasurement>, PositioningError> {
         let mut rows = Vec::new();
         let mut measure = DetailMeasurement { len: 0, sizes: Vec::new() };
+
         for (i, word) in words.iter().enumerate() {
             let len = word.len();
 
             // check if this fit horizontally
             if len >= (self.win.w as usize) { return Err(PositioningError::WordIsTooWide(word.clone())) }
 
-            let new_len = measure.len + len + (if measure.sizes.len() == 0 { 0 } else { sep });
+            let gap = if measure.len == 0 { 0 } else { sep };
+            let new_len = measure.len + gap + len;
 
-            // if the word fit the current row
+            // if the additional word fit the current row
             if new_len < (self.win.w as usize) {
-                measure.sizes.push(measure.len);
+                measure.sizes.push(measure.len + gap);
                 measure.len = new_len;
             } else { // if it has to be shifted to the next row
                 rows.push(measure);
@@ -100,14 +102,12 @@ impl Constraint {
                 if rows.len() >= (self.win.h as usize) { return Err(PositioningError::TooManyToFit(i)) }
 
                 measure.sizes.push(measure.len);
-                measure.len = word.len();
+                measure.len = len;
             }
         }
 
         // last part to add
-        if measure.len > 0 {
-            rows.push(measure);
-        }
+        rows.push(measure);
 
         Ok(rows)
     }

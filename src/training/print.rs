@@ -80,6 +80,7 @@ pub trait SequencePrinter<T>
     fn write_seq(&self, output: &mut T, current: usize, coord: &Pos) -> io::Result<()>;
 }
 
+
 impl<T> SequencePrinter<T> for TypingSequence
     where T: Write {
 

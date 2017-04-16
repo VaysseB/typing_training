@@ -33,7 +33,7 @@ fn main() {
             .iter().map(|x| x.to_string()).collect();
 
         // TODO extrapolate frame constraint based on terminal size and user settings
-        let constraints = Constraint {
+        let mut constraints = Constraint {
             win: Window { x: 2, y: 2, h: 3, w: 24 },
             infinite_height: false,
             h_align: HAlignment::AlignLeft,
@@ -45,7 +45,11 @@ fn main() {
         let positions;
         match constraints.organise(&bucket) {
             Err(msg) => panic!(msg),
-            Ok(r) => { positions = r; }
+            Ok(r) => {
+                positions = r;
+                // adapt height of the window after planning
+                constraints.win.h = (positions[positions.len()-1].y as u16) - constraints.win.y + 1;
+            }
         }
 
         // print the big frame
