@@ -7,7 +7,7 @@ Command line typing training software.
 
 Clone the repository and compile it with the rust toolchain.
 
-```rust
+```bash
 git clone https://github.com/VaysseB/typing_training.git .
 cd typing_training
 cargo build
