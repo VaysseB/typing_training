@@ -1,4 +1,3 @@
-
 extern crate termion;
 
 use std::io::{Write, stdout, stdin};
@@ -23,6 +22,7 @@ fn main() {
         .unwrap();
     stdout.flush().unwrap();
 
+    let used_height;
     {
         use training::sequence::TypingSequence;
         use training::game::{Exercise, Ending};
@@ -58,18 +58,19 @@ fn main() {
             let mut typing = TypingSequence::new(word.to_string());
             let mut exercise = Exercise::new(&mut typing, &pos);
             match exercise.play(|| stdin.lock(), &mut stdout) {
-                Ending::Aborted => { break 'game },
+                Ending::Aborted => { break 'game }
                 Ending::Completed => {}
             }
-
-//            // temporary cleaning while words doesn't have any position
-//            use training::format::PosToTerm;
-//            write!(stdout, "{}{}",
-//                    pos.term_pos(),
-//                    termion::clear::CurrentLine).unwrap();
         }
+
+        used_height = constraints.win.y + constraints.win.h + 1;
     }
 
     // final cleanup
-    write!(stdout, "\n\r{}", termion::cursor::Show).unwrap();
+    use training::positioning::Pos;
+    use training::format::PosToTerm;
+    write!(stdout, "{}{}",
+           Pos { x: 1, y: used_height }.term_pos(),
+           termion::cursor::Show)
+        .unwrap();
 }
