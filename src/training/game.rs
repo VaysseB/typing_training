@@ -5,7 +5,7 @@ use termion::input::TermRead;
 
 use training::sequence::{TypingSequence, key};
 use training::positioning::Pos;
-use training::sign::SignPrinter;
+use training::print::SequencePrinter;
 
 macro_rules! flush {
     ($output:expr) => { $output.flush().unwrap(); }
@@ -33,7 +33,7 @@ impl<'a> Exercise<'a> {
     }
 
     fn update_cursor_pos<W: Write>(&self, output: &mut W) {
-        use training::sign::PosToTermConverter;
+        use training::format::PosToTerm;
         let mut output = output;
         let cpos = Pos { x: self.pos.x + self.curr as u16, y: self.pos.y };
         write!(output, "{}", cpos.term_pos()).unwrap();
@@ -46,7 +46,7 @@ impl<'a> Exercise<'a> {
         'step: while !self.is_done() {
             let current = self.subject[self.curr].code;
 
-            self.subject.show(&mut output, self.curr, &self.pos);
+            self.subject.write_seq(&mut output, self.curr, &self.pos);
             self.update_cursor_pos(&mut output);
             flush!(output);
 
@@ -65,7 +65,7 @@ impl<'a> Exercise<'a> {
                     _ => {}
                 };
 
-                self.subject.show(&mut output, self.curr, &self.pos);
+                self.subject.write_seq(&mut output, self.curr, &self.pos);
                 self.update_cursor_pos(&mut output);
                 flush!(output);
             }

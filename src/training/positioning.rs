@@ -1,12 +1,28 @@
 use std::iter::Iterator;
 
 enum PositioningError {
-    WordIsTooWide(String),
     // the first string that doesn't fit, horizontal constraint
-    TooManyToFit(usize) // number of the first element that overflows, vertical constraint
+    WordIsTooWide(String),
+
+    // number of the first element that overflows, vertical constraint
+    TooManyToFit(usize)
 }
 
-#[derive(Copy, Clone)]
+pub struct Pos {
+    pub x: u16,
+    pub y: u16
+}
+
+pub trait PosMovement {
+    fn shifted_x(&self, dx: u16) -> Pos;
+    fn shifted_y(&self, dy: u16) -> Pos;
+}
+
+impl PosMovement for Pos {
+    fn shifted_x(&self, dx: u16) -> Pos { Pos { x: self.x + dx, y: self.y } }
+    fn shifted_y(&self, dy: u16) -> Pos { Pos { x: self.x, y: self.y + dy } }
+}
+
 pub struct Window {
     pub x: u16,
     pub y: u16,
@@ -14,10 +30,29 @@ pub struct Window {
     pub h: u16
 }
 
-#[derive(Copy, Clone)]
-pub struct Pos {
-    pub x: u16,
-    pub y: u16
+impl Window {
+    pub fn grown_uniform(&self, incr: u16) -> Window {
+        Window {
+            x: self.x - incr,
+            y: self.y - incr,
+            w: self.w + incr * 2,
+            h: self.h + incr * 2
+        }
+    }
+}
+
+pub trait WindowCorner {
+    fn top_left(&self) -> Pos;
+    fn top_right(&self) -> Pos;
+    fn bottom_left(&self) -> Pos;
+    fn bottom_right(&self) -> Pos;
+}
+
+impl WindowCorner for Window {
+    fn top_left(&self) -> Pos { Pos { x: self.x, y: self.y } }
+    fn top_right(&self) -> Pos { Pos { x: self.x + self.w - 1, y: self.y } }
+    fn bottom_left(&self) -> Pos { Pos { x: self.x, y: self.y + self.h - 1 } }
+    fn bottom_right(&self) -> Pos { Pos { x: self.x + self.w - 1, y: self.y + self.h - 1 } }
 }
 
 pub enum HAlignment {
@@ -28,16 +63,16 @@ pub enum VAlignment {
     AlignTop
 }
 
-struct DetailMeasurement {
-    len: usize,
-    sizes: Vec<usize>
-}
-
 pub struct Constraint {
     pub win: Window,
     pub infinite_height: bool,
     pub h_align: HAlignment,
     pub v_align: VAlignment
+}
+
+struct DetailMeasurement {
+    len: usize,
+    sizes: Vec<usize> // asc size of items
 }
 
 impl Constraint {
@@ -51,7 +86,7 @@ impl Constraint {
             // check if this fit horizontally
             if len >= (self.win.w as usize) { return Err(PositioningError::WordIsTooWide(word.clone())) }
 
-            let new_len = measure.len + len + (if measure.len == 0 { 0 } else { sep });
+            let new_len = measure.len + len + (if measure.sizes.len() == 0 { 0 } else { sep });
 
             // if the word fit the current row
             if new_len < (self.win.w as usize) {
