@@ -16,19 +16,20 @@ fn main() {
 
     // init setup
     write!(stdout,
-           "{}{}",
+           "{}{}{}",
            termion::clear::All,
-           termion::cursor::Goto(1, 1))
+           termion::cursor::Goto(1, 1),
+           termion::cursor::Hide)
         .unwrap();
     stdout.flush().unwrap();
 
     let used_height;
     {
-        use training::sequence::TypingSequence;
-        use training::game::{Exercise, Ending};
+        use training::game::{Game};
         use training::positioning::{Constraint, Window, HAlignment, VAlignment, Positioning};
 
         // TODO fetch words to type
+        // TODO replace String by TypingSequence
         let bucket = vec!["if", "this", "is", "not", "in", "self", "then", "i", "begin", "to", "call", "rust"]
             .iter().map(|x| x.to_string()).collect();
 
@@ -48,20 +49,20 @@ fn main() {
             Ok(r) => { positions = r; }
         }
 
+        // now we have everything to build the game
+        let mut game = Game::new(bucket.into_iter(), positions.into_iter());
+
+
         // print the big frame
         use training::print::WindowPrinter;
         constraints.win.grown_uniform(1).write_rect(&mut stdout).unwrap();
+        // print every words the first time
+        game.write_all(&mut stdout).unwrap();
+        // end of init of the game
+        stdout.flush().unwrap();
 
-        // main loop of the game
-        // typing word by word
-        'game: for (word, pos) in bucket.iter().zip(positions) {
-            let mut typing = TypingSequence::new(word);
-            let mut exercise = Exercise::new(&mut typing, &pos);
-            match exercise.play(|| stdin.lock(), &mut stdout) {
-                Ending::Aborted => { break 'game }
-                Ending::Completed => {}
-            }
-        }
+        // start the game
+        game.play(&|| stdin.lock(), &mut stdout);
 
         used_height = constraints.win.y + constraints.win.h + 1;
     }
