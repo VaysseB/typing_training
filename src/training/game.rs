@@ -9,6 +9,8 @@ use training::sequence::{TypingSequence, key};
 use training::positioning::Pos;
 use training::print::SequencePrinter;
 
+
+// This is a brilliant macro, such time savior
 macro_rules! flush {
     ($output:expr) => { $output.flush() }
 }
@@ -36,27 +38,26 @@ impl Game {
         Game { pieces: pieces }
     }
 
-    pub fn play<F, R: Read, W: Write>(&mut self, input_provider: &F, output: &mut W) -> Ending
+    pub fn play<F, R: Read, W: Write>(&mut self, input_provider: &F, mut output: &mut W) -> io::Result<Ending>
         where F: Fn() -> R {
-        let mut output = output;
-
         for ref mut pair in self.pieces.iter_mut() {
             let mut typing : &mut TypingSequence = &mut pair.0;
             let pos : &Pos = &pair.1;
 
             let mut exercise = Exercise::new(&mut typing, &pos);
             let status = exercise.play(input_provider, &mut output);
-            match status {
-                Ending::Aborted => { return status; },
+            match try!(status) {
+                // TODO this may be misleading, find something better when possible
+                Ending::Aborted => { return Ok(Ending::Aborted); },
+                // TODO do something with this
                 Ending::Completed => ()
             }
         }
 
-        Ending::Completed
+        Ok(Ending::Completed)
     }
 
-    pub fn write_all<W: Write>(&self, output: &mut W) -> io::Result<()> {
-        let mut output = output;
+    pub fn write_all<W: Write>(&self, mut output: &mut W) -> io::Result<()> {
         let not_the_current = usize::max_value();
         for &(ref typing, ref pos) in self.pieces.iter() {
             try!(typing.write_seq(&mut output, not_the_current, &pos));
@@ -86,24 +87,22 @@ impl<'a> Exercise<'a> {
     }
 
 
-    fn update_cursor_pos<W: Write>(&self, output: &mut W) -> io::Result<()> {
+    fn update_cursor_pos<W: Write>(&self, mut output: &mut W) -> io::Result<()> {
         use training::format::PosToTerm;
-        let mut output = output;
         let cpos = Pos { x: self.pos.x + self.curr as u16, y: self.pos.y };
         write!(output, "{}", cpos.term_pos())
     }
 
 
-    pub fn play<F, R: Read, W: Write>(&mut self, input_provider: F, output: &mut W) -> Ending
+    pub fn play<F, R: Read, W: Write>(&mut self, input_provider: F, mut output: &mut W) -> io::Result<Ending>
         where F: Fn() -> R {
-        let mut output = output;
 
         'step: while !self.is_done() {
             let current = self.subject[self.curr].code;
 
-            self.subject.write_seq(&mut output, self.curr, &self.pos).unwrap();
-            self.update_cursor_pos(&mut output).unwrap();
-            flush!(output).unwrap();
+            try!(self.subject.write_seq(&mut output, self.curr, &self.pos));
+            try!(self.update_cursor_pos(&mut output));
+            try!(flush!(output));
 
             let input = input_provider();
             'input: for c in input.keys() {
@@ -117,20 +116,20 @@ impl<'a> Exercise<'a> {
                     Key::Char(_) => {
                         self.subject[self.curr].status = key::Status::Missed;
                     }
-                    _ => {}
+                    _ => ()
                 };
 
-                self.subject.write_seq(&mut output, self.curr, &self.pos).unwrap();
-                self.update_cursor_pos(&mut output).unwrap();
-                flush!(output).unwrap();
+                try!(self.subject.write_seq(&mut output, self.curr, &self.pos));
+                try!(self.update_cursor_pos(&mut output));
+                try!(flush!(output));
             }
         }
 
         // last update after completion
-        self.subject.write_seq(&mut output, self.curr, &self.pos).unwrap();
-        flush!(output).unwrap();
+        try!(self.subject.write_seq(&mut output, self.curr, &self.pos));
+        try!(flush!(output));
 
-        if self.is_done() { Ending::Completed } else { Ending::Aborted }
+        if self.is_done() { Ok(Ending::Completed) } else { Ok(Ending::Aborted) }
     }
 }
 

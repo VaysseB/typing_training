@@ -29,7 +29,6 @@ fn main() {
         use training::positioning::{Constraint, Window, HAlignment, VAlignment, Positioning};
 
         // TODO fetch words to type
-        // TODO replace String by TypingSequence
         let bucket = vec!["if", "this", "is", "not", "in", "self", "then", "i", "begin", "to", "call", "rust"]
             .iter().map(|x| x.to_string()).collect();
 
@@ -62,7 +61,7 @@ fn main() {
         stdout.flush().unwrap();
 
         // start the game
-        game.play(&|| stdin.lock(), &mut stdout);
+        game.play(&|| stdin.lock(), &mut stdout).unwrap();
 
         used_height = constraints.win.y + constraints.win.h + 1;
     }
