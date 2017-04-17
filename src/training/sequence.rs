@@ -32,7 +32,7 @@ impl IndexMut<usize> for TypingSequence {
 }
 
 impl TypingSequence {
-    pub fn new(sentence: String) -> TypingSequence {
+    pub fn new(sentence: &String) -> TypingSequence {
         let mut keys = Vec::new();
         for c in sentence.chars() {
             keys.push(key::Key { code: c, status: key::Status::Unvalidated });

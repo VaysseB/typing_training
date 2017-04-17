@@ -55,7 +55,7 @@ fn main() {
         // main loop of the game
         // typing word by word
         'game: for (word, pos) in bucket.iter().zip(positions) {
-            let mut typing = TypingSequence::new(word.to_string());
+            let mut typing = TypingSequence::new(word);
             let mut exercise = Exercise::new(&mut typing, &pos);
             match exercise.play(|| stdin.lock(), &mut stdout) {
                 Ending::Aborted => { break 'game }
