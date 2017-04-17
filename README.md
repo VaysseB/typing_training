@@ -55,7 +55,7 @@ _Personals_
 
 ## Inputs logics
 
-Apps and website for typing tutorial used different kind of inputs logic in reaction to errors.
+Apps and website for typing tutorial used different kinds of input logic in reaction to errors.
 Simply put, on valid keystroke, all of them move to the next character, but they differ on invalid keystroke.
 
 1. The game blocks on the character mistyped. It waits on position until the user type the right key,
@@ -73,12 +73,11 @@ At the end of a failed word (which contains at least on failed character), the g
 ## History
 
 I've always typed in Azerty since childhood without really learning it.
-I became a software programmer but I was fascinating about how azerty is inefficient, forcing thumbs, hands, wristle and the full arm to move to type a single key.
-
+I become a software programmer and I need to type very often.
+I'm fascinating about how azerty is inefficient, forcing fingers, hands, elbow and the full arm to move to type a single key.
 After doing some research, I started to learn dvorak in early 2015. I switched completely to it in septembre 2015, and ditch azerty for sure.
 
 At first, training was only with Notepad-like editor, simply to simple learn key positions. Then, I switched to typing website ([try this one](https://learn.dvorak.nl/?lang=en&lesson=1)) to really learn it.
-
 Now, as a french guy, I also need to type in my native language, but I cannot find any good _Bépo_ learning typing website or app. I did try some of some of the most famous ones, but they all lack _Bépo_.
 
 So, why not build a new app to learn (Rust and _Bépo_)?
