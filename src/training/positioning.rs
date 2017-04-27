@@ -1,8 +1,8 @@
 use std::iter::Iterator;
 
 enum PositioningError {
-    // the first string that doesn't fit, horizontal constraint
-    WordIsTooWide(String),
+    // the size of the first string that doesn't fit, horizontal constraint
+    WordIsTooWide(usize),
 
     // number of the first element that overflows, vertical constraint
     TooManyToFit(usize)
@@ -82,16 +82,16 @@ struct DetailMeasurement {
 }
 
 impl Constraint {
-    fn split_rows(&self, words: &Vec<String>, sep: usize)
+    fn split_rows(&self, words: &Vec<usize>, sep: usize)
                   -> Result<Vec<DetailMeasurement>, PositioningError> {
         let mut rows = Vec::new();
         let mut measure = DetailMeasurement { len: 0, sizes: Vec::new() };
 
-        for (i, word) in words.iter().enumerate() {
-            let len = word.len();
+        for (i, len) in words.iter().enumerate() {
+            let len : usize = *len;
 
             // check if this fit horizontally
-            if len >= (self.win.w as usize) { return Err(PositioningError::WordIsTooWide(word.clone())) }
+            if len >= (self.win.w as usize) { return Err(PositioningError::WordIsTooWide(len)) }
 
             let gap = if measure.len == 0 { 0 } else { sep };
             let new_len = measure.len + gap + len;
@@ -120,18 +120,18 @@ impl Constraint {
 }
 
 pub trait Positioning {
-    fn organise(&self, words: &Vec<String>) -> Result<Vec<Pos>, String>;
+    fn organise(&self, words: &Vec<usize>) -> Result<Vec<Pos>, String>;
 }
 
 impl Positioning for Constraint {
     // the planning fails if any word doesn't fit into the window
-    fn organise(&self, words: &Vec<String>) -> Result<Vec<Pos>, String> {
+    fn organise(&self, words: &Vec<usize>) -> Result<Vec<Pos>, String> {
         let gap: usize = 1;
         match self.split_rows(words, gap) {
             Err(kind) => {
                 match kind {
-                    PositioningError::WordIsTooWide(word) =>
-                        Err(format!("too narrow to fit '{}'", word)),
+                    PositioningError::WordIsTooWide(len) =>
+                        Err(format!("too narrow to fit a word of '{}' length", len)),
                     PositioningError::TooManyToFit(index) =>
                         Err(format!("too many word, overflow from the {}th", index))
                 }
