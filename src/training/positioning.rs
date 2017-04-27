@@ -88,7 +88,7 @@ impl Constraint {
         let mut measure = DetailMeasurement { len: 0, sizes: Vec::new() };
 
         for (i, len) in words.iter().enumerate() {
-            let len : usize = *len;
+            let len = *len;
 
             // check if this fit horizontally
             if len >= (self.win.w as usize) { return Err(PositioningError::WordIsTooWide(len)) }
