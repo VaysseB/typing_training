@@ -1,10 +1,12 @@
 use std::io;
 
+use termion;
 use termion::event::{Event, Key};
 use termion::input::TermRead;
 
 use training::ui::Ui;
 use training::training::{Training, ExerciseStatus};
+use training::positioning::Window;
 
 
 pub struct Game {
@@ -93,4 +95,9 @@ impl Game {
         }
         Ok(())
     }
+}
+
+pub fn play_area() -> Window {
+    let size = termion::terminal_size().expect("no size of terminal");
+    Window { x: 1, y: 1, h: size.1 - 1, w: size.0 }.shrinked_uniform(1)
 }

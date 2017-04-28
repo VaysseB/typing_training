@@ -1,4 +1,6 @@
+
 use std::iter::Iterator;
+use std::cmp::{min, max};
 
 enum PositioningError {
     // the size of the first string that doesn't fit, horizontal constraint
@@ -23,6 +25,7 @@ impl PosMovement for Pos {
     fn shifted_y(&self, dy: u16) -> Pos { Pos { x: self.x, y: self.y + dy } }
 }
 
+#[derive(Debug)]
 pub struct Window {
     pub x: u16,
     pub y: u16,
@@ -37,6 +40,24 @@ impl Window {
             y: self.y - incr,
             w: self.w + incr * 2,
             h: self.h + incr * 2
+        }
+    }
+
+    pub fn grown_sym(&self, incrx: u16, incry: u16) -> Window {
+        Window {
+            x: self.x - incrx,
+            y: self.y - incry,
+            w: self.w + incrx * 2,
+            h: self.h + incry * 2
+        }
+    }
+
+    pub fn shrinked_uniform(&self, decr: u16) -> Window {
+        Window {
+            x: self.x + decr,
+            y: self.y + decr,
+            w: self.w - decr * 2,
+            h: self.h - decr * 2
         }
     }
 }
@@ -69,11 +90,16 @@ pub enum VAlignment {
     AlignBottom
 }
 
+pub enum PostLayoutAction {
+    ShrinkEmptySpaces(u16, u16) // whitespace border to keep, x and y
+}
+
 pub struct Constraint {
     pub win: Window,
     pub infinite_height: bool,
     pub h_align: HAlignment,
-    pub v_align: VAlignment
+    pub v_align: VAlignment,
+    pub action: Option<PostLayoutAction>
 }
 
 struct DetailMeasurement {
@@ -100,7 +126,8 @@ impl Constraint {
             if new_len < (self.win.w as usize) {
                 measure.sizes.push(measure.len + gap);
                 measure.len = new_len;
-            } else { // if it has to be shifted to the next row
+            } else {
+                // if it has to be shifted to the next row
                 rows.push(measure);
                 measure = DetailMeasurement { len: 0, sizes: Vec::new() };
 
@@ -120,12 +147,12 @@ impl Constraint {
 }
 
 pub trait Positioning {
-    fn organise(&self, words: &Vec<usize>) -> Result<Vec<Pos>, String>;
+    fn organise(&self, words: &Vec<usize>) -> Result<(Vec<Pos>, Window), String>;
 }
 
 impl Positioning for Constraint {
-    // the planning fails if any word doesn't fit into the window
-    fn organise(&self, words: &Vec<usize>) -> Result<Vec<Pos>, String> {
+    // the planning fails if any word doesn't fit into the constraint's window
+    fn organise(&self, words: &Vec<usize>) -> Result<(Vec<Pos>, Window), String> {
         let gap: usize = 1;
         match self.split_rows(words, gap) {
             Err(kind) => {
@@ -135,9 +162,12 @@ impl Positioning for Constraint {
                     PositioningError::TooManyToFit(index) =>
                         Err(format!("too many word, overflow from the {}th", index))
                 }
-            },
+            }
             Ok(rows) => {
-                let mut planning : Vec<Pos> = Vec::new();
+                let mut bounding_box =
+                    if rows.len() == 0 { Window { x: 0, y: 0, w: 0, h: 0 } }
+                    else { Window { x: u16::max_value(), y: u16::max_value(), w: 0, h: rows.len() as u16 } };
+                let mut planning = Vec::new();
 
                 let start_y = match self.v_align {
                     VAlignment::AlignTop => 0,
@@ -152,15 +182,22 @@ impl Positioning for Constraint {
                         HAlignment::AlignRight => self.win.w - (measure.len as u16)
                     };
 
+                    bounding_box.w = max(bounding_box.w, measure.len as u16);
+
                     for dx in measure.sizes.iter() {
-                        planning.push(Pos {
+                        let pos = Pos {
                             x: self.win.x + start_x + (*dx as u16),
                             y: self.win.y + start_y + (dy as u16)
-                        });
+                        };
+
+                        bounding_box.x = min(bounding_box.x, pos.x);
+                        bounding_box.y = min(bounding_box.y, pos.y);
+
+                        planning.push(pos);
                     }
                 }
 
-                Ok(planning)
+                Ok((planning, bounding_box))
             }
         }
     }

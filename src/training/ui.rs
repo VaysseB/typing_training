@@ -2,7 +2,7 @@ use std::io;
 
 use termion;
 
-use training::positioning::{Pos, Constraint, Positioning};
+use training::positioning::{Pos, Constraint, Window, Positioning, PostLayoutAction};
 use training::format::PosToTerm;
 use training::print::WindowPrinter;
 
@@ -30,8 +30,8 @@ impl Ui {
 
     pub fn reset_cursor<W: io::Write>(&mut self, mut output: &mut W) -> io::Result<()> {
         try!(write!(output, "{}{}",
-               Pos { x: 1, y: self.height() }.term_pos(),
-               termion::cursor::Show));
+                    Pos { x: 1, y: self.height() }.term_pos(),
+                    termion::cursor::Show));
         output.flush()
     }
 
@@ -44,7 +44,24 @@ impl Ui {
         self.constraints.win.y + self.constraints.win.h + 1
     }
 
-    pub fn do_layout(&self) -> Result<Vec<Pos>, String> {
-        self.constraints.organise(&self.items)
+    fn post_actions(&mut self, poses: Vec<Pos>, bounding_box: &Window) -> Vec<Pos> {
+        match self.constraints.action {
+            Some(ref action) => {
+                match action {
+                    &PostLayoutAction::ShrinkEmptySpaces(gapx, gapy) => {
+                        self.constraints.win = bounding_box.grown_sym(gapx, gapy);
+                    }
+                }
+            }
+            None => ()
+        }
+        poses
+    }
+
+    pub fn do_layout(&mut self) -> Result<Vec<Pos>, String> {
+        match self.constraints.organise(&self.items) {
+            Ok((poses, win)) => Ok(self.post_actions(poses, &win)),
+            Err(s) => Err(s)
+        }
     }
 }

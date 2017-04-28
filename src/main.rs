@@ -6,10 +6,10 @@ use termion::raw::IntoRawMode;
 
 mod training;
 
-use training::positioning::{Constraint, Window, HAlignment, VAlignment};
+use training::positioning::{Constraint, HAlignment, VAlignment, PostLayoutAction};
 use training::training::Training;
 use training::ui::Ui;
-use training::game::Game;
+use training::game::{self, Game};
 
 
 fn main() {
@@ -26,15 +26,16 @@ fn main() {
 
     // TODO extrapolate frame constraint based on terminal size and user settings
     let constraints = Constraint {
-        win: Window { x: 2, y: 2, h: 5, w: 24 },
+        win: game::play_area(),
         infinite_height: false,
         h_align: HAlignment::AlignMiddle,
-        v_align: VAlignment::AlignCenter
+        v_align: VAlignment::AlignCenter,
+        action: Some(PostLayoutAction::ShrinkEmptySpaces(2, 1))
     };
 
     // plan words position on the screen based on constraints
     // if this is not possible, the app panic
-    let ui = Ui::new(constraints, sizes);
+    let mut ui = Ui::new(constraints, sizes);
     let positions = ui.do_layout().unwrap();
     let training = Training::new(bucket.into_iter(), positions.into_iter());
     Game::new(ui, training).exec(&|| stdin.lock(), &mut stdout).unwrap();
