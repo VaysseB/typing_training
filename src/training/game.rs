@@ -40,7 +40,7 @@ impl Game {
                 match evt.expect("no event") {
                     Event::Key(key) if key == Key::Esc => {
                         try!(write!(output, "ABORTED"));
-                        break 'exercise;
+                        break 'main;
                     }
                     Event::Key(key) => {
                         match self.training.play(&key) {
