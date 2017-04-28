@@ -14,16 +14,16 @@ cargo build
 cargo run
 ```
 
-Current built under:
+Current built under _(last update 2017-apr-28)_:
 
 * Linux 4.7.10-1-MANJARO x86_64 GNU/Linux
 * rustup 1.2.0
-* cargo-0.17.0-nightly (f9e5481 2017-03-03)
-* rustc 1.16.0 (30cf806ef 2017-03-10)
+* cargo 0.18.0 (fe7b0cdcf 2017-04-24)
+* rustc 1.17.0 (56124baa9 2017-04-24)
 * _as info:_ gcc/g++ 6.3.1 20170306
 * _as info:_ clang version 3.9.1
 
-## Features
+## Main features
 
 | Features | Progress |
 |----------|----------|
@@ -37,6 +37,16 @@ Current built under:
 | Language layout autodetection         | &#9746; Not planned |
 | Keyboard keys layout autodetection    | &#9746; Not planned |
 
+
+### Minor functionalities
+
+| Functionalities | Progress |
+|-----------------|----------|
+| Highlight character individually | &#9745; Done |
+| Highlight good/bad/pending typing | &#9745; Done |
+| Automatic words layout | &#9745; Done |
+| Refresh of words layout on terminal resize | &#9744; TBD - ready to do |
+| Put a status bar for general message (mainly abort or non-typing error) | &#9744; TBD |
 
 ## Key project objectives
 
