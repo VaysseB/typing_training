@@ -36,9 +36,12 @@ impl Game {
                     break 'events;
                 }
                 Event::Key(key) => {
-                    match try!(self.training.play(&key, output)) {
+                    match self.training.play(&key) {
                         ExerciseStatus::Validated => {
-                            if self.training.has_next() { self.training.next() } else { break 'events }
+                            if self.training.has_next() {
+                                try!(self.training.write_current(&mut output));
+                                self.training.next()
+                            } else { break 'events }
                         }
                         ExerciseStatus::NotYetDone => ()
                     }
@@ -50,6 +53,8 @@ impl Game {
                     try!(write!(output, "Unsupported event occurred (=> {:?})", x));
                 }
             }
+
+            try!(self.training.write_current(&mut output));
         }
 
         // clean up (a little bit only) after the game

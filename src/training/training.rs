@@ -56,19 +56,21 @@ impl Training {
         self.next_at < self.pieces.len()
     }
 
-    pub fn play<W: io::Write>(&mut self, key: &event::Key, mut output: &mut W) -> io::Result<ExerciseStatus> {
+    pub fn play(&mut self, key: &event::Key) -> ExerciseStatus {
         let mut exercise = self.exercise.as_mut().expect("cannot play without exercise");
-        let status = try!(exercise.play(&key));
-        try!(exercise.write(&mut output));
-
-        match status {
+        match exercise.play(&key) {
             InputStatus::Correct => {
-                if exercise.is_done() { Ok(ExerciseStatus::Validated) } else { Ok(ExerciseStatus::NotYetDone) }
+                if exercise.is_done() { ExerciseStatus::Validated } else { ExerciseStatus::NotYetDone }
             }
             InputStatus::Wrong | InputStatus::Unhandled => {
-                Ok(ExerciseStatus::NotYetDone)
+                ExerciseStatus::NotYetDone
             }
         }
+    }
+
+    pub fn write_current<W: io::Write>(&self, mut output: &mut W) -> io::Result<()> {
+        let ref exercise = self.exercise.as_ref().expect("no exercise to write");
+        exercise.write(&mut output)
     }
 
     pub fn write_all<W: io::Write>(&self, mut output: &mut W) -> io::Result<()> {
@@ -110,7 +112,7 @@ impl Exercise {
         }
     }
 
-    pub fn write<W: io::Write>(&mut self, mut output: &mut W) -> io::Result<()> {
+    pub fn write<W: io::Write>(&self, mut output: &mut W) -> io::Result<()> {
         let subject = self.subject.upgrade().expect("no subject to write");
         let subject: &RefCell<TypingSequence> = Rc::borrow(&subject);
         let subject: Ref<TypingSequence> = subject.borrow();
@@ -123,7 +125,7 @@ impl Exercise {
         flush!(output)
     }
 
-    pub fn play(&mut self, key: &event::Key) -> io::Result<InputStatus> {
+    pub fn play(&mut self, key: &event::Key) -> InputStatus {
         let subject = self.subject.upgrade().expect("no subject to play with");
         let subject: &RefCell<TypingSequence> = Rc::borrow(&subject);
         let mut subject: RefMut<TypingSequence> = subject.borrow_mut();
@@ -133,13 +135,13 @@ impl Exercise {
             &event::Key::Char(c) if c == current => {
                 subject[self.curr].status = key::Status::Passed;
                 self.curr += 1;
-                Ok(InputStatus::Correct)
+                InputStatus::Correct
             }
             &event::Key::Char(_) => {
                 subject[self.curr].status = key::Status::Missed;
-                Ok(InputStatus::Wrong)
+                InputStatus::Wrong
             }
-            _ => Ok(InputStatus::Unhandled)
+            _ => InputStatus::Unhandled
         }
     }
 
