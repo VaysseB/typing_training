@@ -1,6 +1,7 @@
 
 use std::io;
 use std::ops::IndexMut;
+use std::cell::{Ref, RefMut, RefCell};
 use std::rc::{Rc, Weak};
 use std::borrow::Borrow;
 
@@ -31,7 +32,7 @@ pub enum TypingInput {
 
 
 pub struct Training {
-    pub pieces: Box<[(Rc<TypingSequence>, Rc<Pos>)]>,
+    pub pieces: Box<[(Rc<RefCell<TypingSequence>>, Rc<RefCell<Pos>>)]>,
     pub next_at: usize,
     pub exercise: Option<Exercise>
 }
@@ -41,22 +42,22 @@ impl Training {
 
     pub fn new<T, R>(words: T, plan: R) -> Training
         where T: Iterator<Item=String>, R: Iterator<Item=Pos> {
-        let pieces : Vec<(Rc<TypingSequence>, Rc<Pos>)> = words
-            .map(|w| Rc::new(TypingSequence::new(&w)) )
-            .zip(plan.map(|p| Rc::new(p)))
+        let pieces : Vec<(Rc<RefCell<TypingSequence>>, Rc<RefCell<Pos>>)> = words
+            .map(|w| Rc::new(RefCell::new(TypingSequence::new(&w))) )
+            .zip(plan.map(|p| Rc::new(RefCell::new(p))))
             .collect();
 
         Training { pieces: pieces.into_boxed_slice(), next_at: 0, exercise: None }
     }
 
     pub fn next(&mut self) {
-        let pair : &mut (Rc<TypingSequence>, Rc<Pos>) = self.pieces.index_mut(self.next_at);
+        let pair = self.pieces.index_mut(self.next_at);
         self.exercise = Some(Exercise::new(Rc::clone(&pair.0), Rc::clone(&pair.1)));
         self.next_at = self.next_at + 1;
     }
 
     pub fn play<W: io::Write>(&mut self, key: &event::Key, mut output: &mut W) -> io::Result<(TypingInput, Ending)> {
-        let mut exercise = self.exercise.as_mut().unwrap();
+        let mut exercise = self.exercise.as_mut().expect("cannot play without exercise");
         let status = try!(exercise.play(&key));
         try!(exercise.write(&mut output));
         Ok(status)
@@ -65,6 +66,10 @@ impl Training {
     pub fn write_all<W: io::Write>(&self, mut output: &mut W) -> io::Result<()> {
         let not_the_current = usize::max_value();
         for &(ref typing, ref pos) in self.pieces.iter() {
+            let typing : &RefCell<TypingSequence> = Rc::borrow(typing);
+            let typing : Ref<TypingSequence> = typing.borrow();
+            let pos : &RefCell<Pos> = Rc::borrow(pos);
+            let pos : Ref<Pos> = pos.borrow();
             try!(typing.write_seq(&mut output, not_the_current, &pos));
         }
         flush!(output)
@@ -74,41 +79,47 @@ impl Training {
 
 
 pub struct Exercise {
-    subject: Weak<TypingSequence>,
-    pos: Weak<Pos>,
+    subject: Weak<RefCell<TypingSequence>>,
+    pos: Weak<RefCell<Pos>>,
     curr: usize
 }
 
 
 impl Exercise {
-
-    pub fn new(seq: Rc<TypingSequence>, pos: Rc<Pos>) -> Exercise {
+    pub fn new(seq: Rc<RefCell<TypingSequence>>, pos: Rc<RefCell<Pos>>) -> Exercise {
         Exercise { subject: Rc::downgrade(&seq), pos: Rc::downgrade(&pos), curr: 0 }
     }
 
-
     fn update_cursor_pos<W: io::Write>(&self, mut output: &mut W) -> io::Result<()> {
         use training::format::PosToTerm;
-        let pos = self.pos.upgrade().unwrap();
-        let pos : &Pos = pos.borrow();
-        let cpos = Pos { x: pos.x + self.curr as u16, y: pos.y };
-        write!(output, "{}", cpos.term_pos())
+        match self.pos.upgrade() {
+            Some(pos) => {
+                let pos: &RefCell<Pos> = Rc::borrow(&pos);
+                let pos: Ref<Pos> = pos.borrow();
+                let term_pos = Pos { x: pos.x + self.curr as u16, y: pos.y };
+                write!(output, "{}", term_pos.term_pos())
+            },
+            None => Ok(())
+        }
     }
 
-
     pub fn write<W: io::Write>(&mut self, mut output: &mut W) -> io::Result<()> {
-        let mut subject = self.subject.upgrade().unwrap();
-        let subject : &mut TypingSequence = Rc::get_mut(&mut subject).unwrap();
+        let subject = self.subject.upgrade().expect("no subject to write");
+        let subject : &RefCell<TypingSequence> = Rc::borrow(&subject);
+        let subject : Ref<TypingSequence> = subject.borrow();
+        let pos = self.pos.upgrade().expect("no position to write subject");
+        let pos : &RefCell<Pos> = Rc::borrow(&pos);
+        let pos : Ref<Pos> = pos.borrow();
 
-        try!(subject.write_seq(&mut output, self.curr, &self.pos.upgrade().unwrap()));
+        try!(subject.write_seq(&mut output, self.curr, &pos));
         try!(self.update_cursor_pos(&mut output));
         flush!(output)
     }
 
-
     pub fn play(&mut self, key: &event::Key) -> io::Result<(TypingInput, Ending)> {
-        let mut subject = self.subject.upgrade().unwrap();
-        let mut subject : &mut TypingSequence = Rc::get_mut(&mut subject).unwrap();
+        let subject = self.subject.upgrade().expect("no subject to write");
+        let subject : &RefCell<TypingSequence> = Rc::borrow(&subject);
+        let mut subject : RefMut<TypingSequence> = subject.borrow_mut();
         let current = subject[self.curr].code;
 
         let ti = match key {

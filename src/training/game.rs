@@ -31,7 +31,7 @@ impl Game {
         let input = input_provider();
         let mut res = Ending::Completed;
         'events: for evt in input.events() {
-            match evt.unwrap() {
+            match evt.expect("no event") {
                 Event::Key(key) if key == Key::Esc => {
                     res = Ending::Aborted;
                     break 'events;
