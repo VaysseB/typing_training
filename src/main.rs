@@ -21,7 +21,7 @@ fn main() {
 
     // TODO fetch words to type
     let bucket : Vec<String> = vec!["if", "this", "is", "not", "in", "self", "then", "i", "begin", "to", "call", "rust"]
-        .iter().map(|x| x.to_string()).collect();
+        .iter().map(|x: &&'static str| x.to_string()).collect();
     let sizes : Vec<usize> = bucket.iter().map(|ref w| w.len()).collect();
 
     // TODO extrapolate frame constraint based on terminal size and user settings

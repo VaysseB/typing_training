@@ -30,6 +30,9 @@ impl Game {
             // move to the next word to type
             self.training.next();
 
+            // first update of the new exercise
+            try!(self.training.write_current(&mut output));
+
             let input = input_provider();
             'exercise: for evt in input.events() {
                 match evt.expect("no event") {
