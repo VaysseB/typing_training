@@ -4,7 +4,7 @@ use termion::event::{Event, Key};
 use termion::input::TermRead;
 
 use training::ui::Ui;
-use training::training::{Training, Ending};
+use training::training::{Training, ExerciseStatus};
 
 
 pub struct Game {
@@ -18,7 +18,7 @@ impl Game {
         Game { ui: ui, training: t }
     }
 
-    pub fn exec<F, R: io::Read, W: io::Write>(&mut self, input_provider: &F, mut output: &mut W) -> io::Result<Ending>
+    pub fn exec<F, R: io::Read, W: io::Write>(&mut self, input_provider: &F, mut output: &mut W) -> io::Result<()>
         where F: Fn() -> R {
         // setup the game
         try!(self.ui.clear_and_hide_cursor(output));
@@ -29,36 +29,31 @@ impl Game {
         self.training.next();
 
         let input = input_provider();
-        let mut res = Ending::Completed;
         'events: for evt in input.events() {
             match evt.expect("no event") {
                 Event::Key(key) if key == Key::Esc => {
-                    res = Ending::Aborted;
+                    try!(write!(output, "ABORTED"));
                     break 'events;
-                },
+                }
                 Event::Key(key) => {
-                    res = try!(self.training.play(&key, output)).1;
-                    match res {
-                        Ending::Aborted => { break 'events; },
-                        _ => ()
+                    match try!(self.training.play(&key, output)) {
+                        ExerciseStatus::Validated => {
+                            if self.training.has_next() { self.training.next() } else { break 'events }
+                        }
+                        ExerciseStatus::NotYetDone => ()
                     }
-                },
+                }
                 Event::Mouse(me) => {
                     try!(write!(output, "Mouse event! (=> {:?})", me));
-                },
+                }
                 Event::Unsupported(x) => {
                     try!(write!(output, "Unsupported event occurred (=> {:?})", x));
                 }
             }
         }
 
-        match res {
-            Ending::Aborted => { try!(write!(output, "ABORTED")); },
-            _ => ()
-        }
-
         // clean up (a little bit only) after the game
         try!(self.ui.reset_cursor(output));
-        Ok(Ending::Completed/*res*/)
+        Ok(())
     }
 }

@@ -34,12 +34,8 @@ fn main() {
 
     // plan words position on the screen based on constraints
     // if this is not possible, the app panic
-    let positions;
     let ui = Ui::new(constraints, sizes);
-    match ui.do_layout() {
-        Err(msg) => panic!(msg),
-        Ok(r) => { positions = r; }
-    }
+    let positions = ui.do_layout().unwrap();
     let training = Training::new(bucket.into_iter(), positions.into_iter());
     Game::new(ui, training).exec(&|| stdin.lock(), &mut stdout).unwrap();
 }

@@ -1,4 +1,3 @@
-
 use std::io;
 use std::ops::IndexMut;
 use std::cell::{Ref, RefMut, RefCell};
@@ -17,15 +16,13 @@ macro_rules! flush {
     ($output:expr) => { $output.flush() }
 }
 
-
-pub enum Ending {
-    Aborted,
-    Completed
+pub enum ExerciseStatus {
+    Validated,
+    NotYetDone
 }
 
-
-pub enum TypingInput {
-    Right,
+pub enum InputStatus {
+    Correct,
     Wrong,
     Unhandled
 }
@@ -39,11 +36,10 @@ pub struct Training {
 
 
 impl Training {
-
     pub fn new<T, R>(words: T, plan: R) -> Training
         where T: Iterator<Item=String>, R: Iterator<Item=Pos> {
-        let pieces : Vec<(Rc<RefCell<TypingSequence>>, Rc<RefCell<Pos>>)> = words
-            .map(|w| Rc::new(RefCell::new(TypingSequence::new(&w))) )
+        let pieces: Vec<(Rc<RefCell<TypingSequence>>, Rc<RefCell<Pos>>)> = words
+            .map(|w| Rc::new(RefCell::new(TypingSequence::new(&w))))
             .zip(plan.map(|p| Rc::new(RefCell::new(p))))
             .collect();
 
@@ -56,25 +52,36 @@ impl Training {
         self.next_at = self.next_at + 1;
     }
 
-    pub fn play<W: io::Write>(&mut self, key: &event::Key, mut output: &mut W) -> io::Result<(TypingInput, Ending)> {
+    pub fn has_next(&mut self) -> bool {
+        self.next_at < self.pieces.len()
+    }
+
+    pub fn play<W: io::Write>(&mut self, key: &event::Key, mut output: &mut W) -> io::Result<ExerciseStatus> {
         let mut exercise = self.exercise.as_mut().expect("cannot play without exercise");
         let status = try!(exercise.play(&key));
         try!(exercise.write(&mut output));
-        Ok(status)
+
+        match status {
+            InputStatus::Correct => {
+                if exercise.is_done() { Ok(ExerciseStatus::Validated) } else { Ok(ExerciseStatus::NotYetDone) }
+            }
+            InputStatus::Wrong | InputStatus::Unhandled => {
+                Ok(ExerciseStatus::NotYetDone)
+            }
+        }
     }
 
     pub fn write_all<W: io::Write>(&self, mut output: &mut W) -> io::Result<()> {
         let not_the_current = usize::max_value();
         for &(ref typing, ref pos) in self.pieces.iter() {
-            let typing : &RefCell<TypingSequence> = Rc::borrow(typing);
-            let typing : Ref<TypingSequence> = typing.borrow();
-            let pos : &RefCell<Pos> = Rc::borrow(pos);
-            let pos : Ref<Pos> = pos.borrow();
+            let typing: &RefCell<TypingSequence> = Rc::borrow(typing);
+            let typing: Ref<TypingSequence> = typing.borrow();
+            let pos: &RefCell<Pos> = Rc::borrow(pos);
+            let pos: Ref<Pos> = pos.borrow();
             try!(typing.write_seq(&mut output, not_the_current, &pos));
         }
         flush!(output)
     }
-
 }
 
 
@@ -98,45 +105,49 @@ impl Exercise {
                 let pos: Ref<Pos> = pos.borrow();
                 let term_pos = Pos { x: pos.x + self.curr as u16, y: pos.y };
                 write!(output, "{}", term_pos.term_pos())
-            },
+            }
             None => Ok(())
         }
     }
 
     pub fn write<W: io::Write>(&mut self, mut output: &mut W) -> io::Result<()> {
         let subject = self.subject.upgrade().expect("no subject to write");
-        let subject : &RefCell<TypingSequence> = Rc::borrow(&subject);
-        let subject : Ref<TypingSequence> = subject.borrow();
+        let subject: &RefCell<TypingSequence> = Rc::borrow(&subject);
+        let subject: Ref<TypingSequence> = subject.borrow();
         let pos = self.pos.upgrade().expect("no position to write subject");
-        let pos : &RefCell<Pos> = Rc::borrow(&pos);
-        let pos : Ref<Pos> = pos.borrow();
+        let pos: &RefCell<Pos> = Rc::borrow(&pos);
+        let pos: Ref<Pos> = pos.borrow();
 
         try!(subject.write_seq(&mut output, self.curr, &pos));
         try!(self.update_cursor_pos(&mut output));
         flush!(output)
     }
 
-    pub fn play(&mut self, key: &event::Key) -> io::Result<(TypingInput, Ending)> {
-        let subject = self.subject.upgrade().expect("no subject to write");
-        let subject : &RefCell<TypingSequence> = Rc::borrow(&subject);
-        let mut subject : RefMut<TypingSequence> = subject.borrow_mut();
+    pub fn play(&mut self, key: &event::Key) -> io::Result<InputStatus> {
+        let subject = self.subject.upgrade().expect("no subject to play with");
+        let subject: &RefCell<TypingSequence> = Rc::borrow(&subject);
+        let mut subject: RefMut<TypingSequence> = subject.borrow_mut();
         let current = subject[self.curr].code;
 
-        let ti = match key {
+        match key {
             &event::Key::Char(c) if c == current => {
                 subject[self.curr].status = key::Status::Passed;
                 self.curr += 1;
-                TypingInput::Right
+                Ok(InputStatus::Correct)
             }
             &event::Key::Char(_) => {
                 subject[self.curr].status = key::Status::Missed;
-                TypingInput::Wrong
+                Ok(InputStatus::Wrong)
             }
-            _ => TypingInput::Unhandled
-        };
+            _ => Ok(InputStatus::Unhandled)
+        }
+    }
 
-        let is_done = self.curr >= subject.len();
-        if is_done { Ok((ti, Ending::Completed)) } else { Ok((ti, Ending::Aborted)) }
+    pub fn is_done(&self) -> bool {
+        let subject = self.subject.upgrade().expect("no subject to check if done");
+        let subject: &RefCell<TypingSequence> = Rc::borrow(&subject);
+        let subject: RefMut<TypingSequence> = subject.borrow_mut();
+        self.curr >= subject.len()
     }
 }
 
