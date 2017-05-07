@@ -11,8 +11,8 @@ use app::ui::{AdaptativeDim, Measurement, Pos, Dim};
 pub fn term_dim() -> Dim {
     let size = termion::terminal_size().expect("no size of terminal");
     Dim {
-        height: size.1 - 2,
-        width: size.0 - 1
+        h: size.1 - 2,
+        w: size.0 - 1
     }
 }
 

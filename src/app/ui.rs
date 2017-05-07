@@ -1,3 +1,6 @@
+use std::cmp::max;
+
+
 use app::word::Bucket;
 
 
@@ -29,6 +32,13 @@ impl Alignment {
         Alignment {
             vert: VAlignment::AlignCenter,
             hori: HAlignment::AlignMiddle
+        }
+    }
+
+    pub fn top_left() -> Alignment {
+        Alignment {
+            vert: VAlignment::AlignTop,
+            hori: HAlignment::AlignLeft
         }
     }
 }
@@ -68,23 +78,39 @@ impl Constraint {
 //---
 #[derive(Debug, PartialEq)]
 pub struct Pos {
-    pub x: u16, // TODO hide it
-    pub y: u16  // TODO hide it
+    // TODO keep it only visible inside the crate
+    pub x: u16,
+    // TODO keep it only visible inside the crate
+    pub y: u16
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Dim {
-    pub width: u16, // TODO hide it
-    pub height: u16 // TODO hide it
+    // TODO keep it only visible inside the crate
+    pub w: u16,
+    // TODO keep it only visible inside the crate
+    pub h: u16
 }
 
 impl Into<AdaptativeDim> for Dim {
     fn into(self) -> AdaptativeDim {
         AdaptativeDim {
-            width: Measurement::Value(self.width),
-            height: Measurement::Value(self.height)
+            width: Measurement::Value(self.w),
+            height: Measurement::Value(self.h)
         }
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct BoundingBox {
+    // TODO keep it only visible inside the crate
+    pub x: u16,
+    // TODO keep it only visible inside the crate
+    pub y: u16,
+    // TODO keep it only visible inside the crate
+    pub w: u16,
+    // TODO keep it only visible inside the crate
+    pub h: u16
 }
 
 
@@ -99,24 +125,78 @@ pub enum LayoutError {
 }
 
 impl Constraint {
-    fn organize(&self, bucket: &Bucket) -> Result<Vec<Pos>, LayoutError> {
-        if bucket.words.is_empty() { return Ok(Vec::new()) }
-
+    pub fn organize(&self, bucket: &Bucket) -> Result<(Vec<Pos>, BoundingBox), LayoutError> {
         // the position system within the terminal starts at (1, 1)
         // This is really annoying, because I handle position starting at 0 instead of 1.
         // This algorithm use `first` as an offset, to still work within [0,n] range.
-        let first = Pos { x: 1, y: 1 };
+        // TODO get it from somewhere else because it is bound to terminal's position coordinates
+        let origin = Pos { x: 1, y: 1 };
+
+        let (mut poss, surface, rows) = try!(self.split_roughly(&bucket, &origin));
+        let bbox = self.align(&mut poss, &origin, &surface, &rows);
+
+        Ok((poss, bbox))
+    }
+
+    fn align(&self, rough_pos: &mut Vec<Pos>, origin: &Pos, area_size: &Dim, rows_length: &Vec<u16>) -> BoundingBox {
+        let mut bbox = if rough_pos.len() == 0 {
+            BoundingBox { x: origin.x, y: origin.y, w: 0, h: 0 }
+        } else {
+            BoundingBox { x: u16::max_value(), y: u16::max_value(), w: 0, h: 0 }
+        };
+
+        let offset_y = match self.dim.height {
+            Measurement::Infinite => 0,
+            Measurement::Value(height) => {
+                match self.align.vert {
+                    VAlignment::AlignTop => 0,
+                    VAlignment::AlignCenter => (height - area_size.h) / 2,
+                    VAlignment::AlignBottom => height - area_size.h
+                }
+            }
+        };
+        bbox.y = offset_y;
+
+        for ref mut pos in rough_pos.into_iter() {
+
+            let row_length = rows_length[(pos.y - origin.y) as usize];
+
+            let offset_x = match self.dim.width {
+                Measurement::Infinite => 0,
+                Measurement::Value(width) => {
+                    match self.align.hori {
+                        HAlignment::AlignLeft => 0,
+                        HAlignment::AlignMiddle => (width - row_length) / 2,
+                        HAlignment::AlignRight => width - row_length
+                    }
+                }
+            };
+
+            **pos = Pos {
+                x: pos.x + offset_x,
+                y: pos.y + offset_y
+            };
+        }
+
+        bbox
+    }
+
+    fn split_roughly(&self, bucket: &Bucket, origin: &Pos) -> Result<(Vec<Pos>, Dim, Vec<u16>), LayoutError> {
+        if bucket.words.is_empty() { return Ok((Vec::new(), Dim { w: 0, h: 0 }, Vec::new())); }
+
         let sep: u16 = 1;
-        let mut planning = Vec::new();
+        let mut planning: Vec<Pos> = Vec::new();
+        let mut rows_length = Vec::new();
         let mut last_len: u16 = 0;
         let mut start_the_row = true;
+        let mut right_side = 0;
 
         for (i, word) in bucket.words.iter().enumerate() {
             let len = (*word).raw.len() as u16;
             let (gap, start_x, start_y): (u16, _, _);
 
             {
-                let last_pos = planning.last().unwrap_or(&first);
+                let last_pos = planning.last().unwrap_or(&origin);
                 gap = if start_the_row { 0 } else { sep };
                 start_x = last_pos.x + last_len + gap;
                 start_y = last_pos.y;
@@ -136,7 +216,7 @@ impl Constraint {
                     }
                 }
                 // if the word fit following the last word in the same row
-                Measurement::Value(frame_width) if start_x + len - first.x <= frame_width => {
+                Measurement::Value(frame_width) if start_x + len - origin.x <= frame_width => {
                     Pos {
                         x: start_x,
                         y: start_y
@@ -147,7 +227,7 @@ impl Constraint {
                     // check if this fit vertically
                     match self.dim.height {
                         // if the new row overflows the constraint
-                        Measurement::Value(frame_height) if start_y + 1 - first.y >= frame_height => {
+                        Measurement::Value(frame_height) if start_y + 1 - origin.y >= frame_height => {
                             return Err(LayoutError::TooManyWords(i))
                         }
                         // the word is now the starter of a new row
@@ -162,11 +242,25 @@ impl Constraint {
             };
 
             start_the_row = pos.y != start_y;
+
+            if start_the_row {
+                let previous_row_length = start_x + last_len;
+                rows_length.push(previous_row_length);
+                right_side = max(right_side, previous_row_length);
+            }
+
             last_len = len;
             planning.push(pos);
         }
 
-        Ok(planning)
+        let bottom_line;
+        {
+            let last_pos = planning.last().expect("not possible");
+            rows_length.push(last_pos.x + last_len);
+            bottom_line = last_pos.y;
+        }
+
+        Ok((planning, Dim { w: right_side, h: bottom_line }, rows_length))
     }
 }
 
@@ -181,11 +275,11 @@ mod test {
                 height: Measurement::Value(enough_height_for_all as u16),
                 width: Measurement::Value(5 as u16)
             },
-            align: Alignment::centered() // not relevant
+            align: Alignment::top_left()
         };
-        let bucket = Bucket::new(vec!["larger"]);
+        let input_bucket = Bucket::new(vec!["larger"]);
         let index_of_word_larger = 0;
-        assert_eq!(c.organize(&bucket), Err(LayoutError::TooWide(index_of_word_larger)));
+        assert_eq!(c.organize(&input_bucket), Err(LayoutError::TooWide(index_of_word_larger)));
     }
 
     #[test]
@@ -197,11 +291,11 @@ mod test {
                 height: Measurement::Value(1 as u16),
                 width: Measurement::Value(enough_width_for_all as u16)
             },
-            align: Alignment::centered() // not relevant
+            align: Alignment::top_left()
         };
-        let bucket = Bucket::new(vec!["fit", "stalker"]);
+        let input_bucket = Bucket::new(vec!["fit", "stalker"]);
         let index_of_word_stalker = 1;
-        assert_eq!(c.organize(&bucket), Err(LayoutError::TooManyWords(index_of_word_stalker)));
+        assert_eq!(c.organize(&input_bucket), Err(LayoutError::TooManyWords(index_of_word_stalker)));
     }
 
     #[test]
@@ -212,11 +306,12 @@ mod test {
                 height: Measurement::Value(2 as u16),
                 width: Measurement::Value(12 as u16)
             },
-            align: Alignment::centered() // not relevant
+            align: Alignment::top_left()
         };
-        let bucket = Bucket::new(vec!["first", "second", "third"]);
-        let positions = vec![Pos { x: 1, y: 1 }, Pos { x: 7, y: 1 }, Pos { x: 1, y: 2 }];
-        assert_eq!(c.organize(&bucket), Ok(positions));
+        let input_bucket = Bucket::new(vec!["first", "second", "third"]);
+        let expected_positions = vec![Pos { x: 1, y: 1 }, Pos { x: 7, y: 1 }, Pos { x: 1, y: 2 }];
+        let final_positions = c.organize(&input_bucket).expect("positioning failed").0;
+        assert_eq!(final_positions, expected_positions);
     }
 
     #[test]
@@ -224,14 +319,16 @@ mod test {
         use super::*;
         let c = Constraint {
             dim: AdaptativeDim {
-                height: Measurement::Value(1 as u16), // not relevant as long as not null
+                height: Measurement::Value(1 as u16),
+                // not relevant as long as not null
                 width: Measurement::Infinite
             },
-            align: Alignment::centered() // not relevant
+            align: Alignment::top_left()
         };
-        let bucket = Bucket::new(vec!["first", "second", "third"]);
-        let positions = vec![Pos { x: 1, y: 1 }, Pos { x: 7, y: 1 }, Pos { x: 14, y: 1 }];
-        assert_eq!(c.organize(&bucket), Ok(positions));
+        let input_bucket = Bucket::new(vec!["first", "second", "third"]);
+        let expected_positions = vec![Pos { x: 1, y: 1 }, Pos { x: 7, y: 1 }, Pos { x: 14, y: 1 }];
+        let final_positions = c.organize(&input_bucket).expect("positioning failed").0;
+        assert_eq!(final_positions, expected_positions);
     }
 
     #[test]
@@ -242,11 +339,12 @@ mod test {
                 height: Measurement::Infinite,
                 width: Measurement::Value(6 as u16) // not relevant as long as minimal word len
             },
-            align: Alignment::centered() // not relevant
+            align: Alignment::top_left()
         };
-        let bucket = Bucket::new(vec!["first", "second", "third"]);
-        let positions = vec![Pos { x: 1, y: 1 }, Pos { x: 1, y: 2 }, Pos { x: 1, y: 3 }];
-        assert_eq!(c.organize(&bucket), Ok(positions));
+        let input_bucket = Bucket::new(vec!["first", "second", "third"]);
+        let expected_positions = vec![Pos { x: 1, y: 1 }, Pos { x: 1, y: 2 }, Pos { x: 1, y: 3 }];
+        let final_positions = c.organize(&input_bucket).expect("positioning failed").0;
+        assert_eq!(final_positions, expected_positions);
     }
 }
 
@@ -254,12 +352,16 @@ mod test {
 //---
 #[derive(Debug)]
 pub struct Layout {
-    pub positions: Vec<Pos> // TODO hide it
+    pub frame: BoundingBox,
+    // TODO keep it only visible inside the crate
+    pub positions: Vec<Pos> // TODO keep it only visible inside the crate
 }
 
 pub fn layout(constraint: &Constraint, bucket: &Bucket) -> Result<Layout, LayoutError> {
+    let (poses, bbox) = try!(constraint.organize(bucket));
     Ok(Layout {
-        positions: try!(constraint.organize(&bucket))
+        frame: bbox,
+        positions: poses
     })
 }
 

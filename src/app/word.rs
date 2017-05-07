@@ -2,7 +2,7 @@
 //---
 #[derive(Debug)]
 pub struct Word {
-    pub raw: String // TODO hide it
+    pub raw: String // TODO keep it only visible inside the crate
 }
 
 impl Word {
@@ -15,7 +15,7 @@ impl Word {
 //---
 #[derive(Debug)]
 pub struct Bucket {
-    pub words: Vec<Word> // TODO hide it
+    pub words: Vec<Word> // TODO keep it only visible inside the crate
 }
 
 impl Bucket {
