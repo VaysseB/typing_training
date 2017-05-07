@@ -45,7 +45,7 @@ pub enum Measurement<T> {
 
 //---
 #[derive(Debug)]
-pub struct BoundingFrame {
+pub struct AdaptativeDim {
     pub width: Measurement<u16>,
     pub height: Measurement<u16>
 }
@@ -54,13 +54,13 @@ pub struct BoundingFrame {
 //---
 #[derive(Debug)]
 pub struct Constraint {
-    pub frame: BoundingFrame,
+    pub dim: AdaptativeDim,
     pub align: Alignment
 }
 
 impl Constraint {
-    pub fn new(f: BoundingFrame, alg: Alignment) -> Constraint {
-        Constraint { frame: f, align: alg }
+    pub fn new(f: AdaptativeDim, alg: Alignment) -> Constraint {
+        Constraint { dim: f, align: alg }
     }
 }
 
@@ -78,9 +78,9 @@ pub struct Dim {
     pub height: u16 // TODO hide it
 }
 
-impl Into<BoundingFrame> for Dim {
-    fn into(self) -> BoundingFrame {
-        BoundingFrame {
+impl Into<AdaptativeDim> for Dim {
+    fn into(self) -> AdaptativeDim {
+        AdaptativeDim {
             width: Measurement::Value(self.width),
             height: Measurement::Value(self.height)
         }
@@ -123,7 +123,7 @@ impl Constraint {
             }
 
             // check if this fit horizontally
-            let pos = match self.frame.width {
+            let pos = match self.dim.width {
                 // if the word itself is too wide for the constraint
                 Measurement::Value(frame_width) if len > frame_width => {
                     return Err(LayoutError::TooWide(i))
@@ -145,7 +145,7 @@ impl Constraint {
                 // if the word make the current row overflows
                 Measurement::Value(_) => {
                     // check if this fit vertically
-                    match self.frame.height {
+                    match self.dim.height {
                         // if the new row overflows the constraint
                         Measurement::Value(frame_height) if start_y + 1 - first.y >= frame_height => {
                             return Err(LayoutError::TooManyWords(i))
@@ -177,7 +177,7 @@ mod test {
         use super::*;
         let enough_height_for_all = 1;
         let c = Constraint {
-            frame: BoundingFrame {
+            dim: AdaptativeDim {
                 height: Measurement::Value(enough_height_for_all as u16),
                 width: Measurement::Value(5 as u16)
             },
@@ -193,7 +193,7 @@ mod test {
         use super::*;
         let enough_width_for_all = 10;
         let c = Constraint {
-            frame: BoundingFrame {
+            dim: AdaptativeDim {
                 height: Measurement::Value(1 as u16),
                 width: Measurement::Value(enough_width_for_all as u16)
             },
@@ -208,7 +208,7 @@ mod test {
     fn perfect_fit() {
         use super::*;
         let c = Constraint {
-            frame: BoundingFrame {
+            dim: AdaptativeDim {
                 height: Measurement::Value(2 as u16),
                 width: Measurement::Value(12 as u16)
             },
@@ -223,7 +223,7 @@ mod test {
     fn keep_on_one_line() {
         use super::*;
         let c = Constraint {
-            frame: BoundingFrame {
+            dim: AdaptativeDim {
                 height: Measurement::Value(1 as u16), // not relevant as long as not null
                 width: Measurement::Infinite
             },
@@ -238,7 +238,7 @@ mod test {
     fn auto_add_rows() {
         use super::*;
         let c = Constraint {
-            frame: BoundingFrame {
+            dim: AdaptativeDim {
                 height: Measurement::Infinite,
                 width: Measurement::Value(6 as u16) // not relevant as long as minimal word len
             },
@@ -254,15 +254,11 @@ mod test {
 //---
 #[derive(Debug)]
 pub struct Layout {
-    origin: Pos,
-    dim: Dim,
     pub positions: Vec<Pos> // TODO hide it
 }
 
 pub fn layout(constraint: &Constraint, bucket: &Bucket) -> Result<Layout, LayoutError> {
     Ok(Layout {
-        origin: Pos { x: 1, y: 1 },
-        dim: Dim { height: 2, width: 2 },
         positions: try!(constraint.organize(&bucket))
     })
 }

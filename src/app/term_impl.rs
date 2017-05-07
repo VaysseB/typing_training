@@ -4,7 +4,7 @@ use std::io;
 use termion;
 
 use app::word::{Word};
-use app::ui::{BoundingFrame, Measurement, Pos, Dim};
+use app::ui::{AdaptativeDim, Measurement, Pos, Dim};
 
 
 //---
