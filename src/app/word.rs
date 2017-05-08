@@ -1,5 +1,6 @@
 
 use std::fmt;
+use std::ops::Index;
 
 
 //---
@@ -34,5 +35,17 @@ impl Bucket {
                 .map(|w: &&'static str| Word::new(w))
                 .collect::<Vec<Word>>()
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.words.len()
+    }
+}
+
+impl Index<usize> for Bucket {
+    type Output = Word;
+
+    fn index(&self, i: usize) -> &Word {
+        &self.words[i]
     }
 }

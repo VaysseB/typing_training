@@ -1,5 +1,4 @@
 use std::io;
-use std::io::Write;
 
 use app::ui::{Pos, Dim, BoundingBox};
 

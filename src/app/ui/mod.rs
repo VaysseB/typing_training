@@ -32,6 +32,7 @@ pub struct Alignment {
 }
 
 impl Alignment {
+    #[allow(unused)]
     pub fn centered() -> Alignment {
         Alignment {
             vert: VAlignment::AlignCenter,
@@ -39,6 +40,7 @@ impl Alignment {
         }
     }
 
+    #[allow(unused)]
     pub fn top_left() -> Alignment {
         Alignment {
             vert: VAlignment::AlignTop,
@@ -46,6 +48,7 @@ impl Alignment {
         }
     }
 
+    #[allow(unused)]
     pub fn bottom_right() -> Alignment {
         Alignment {
             vert: VAlignment::AlignBottom,
