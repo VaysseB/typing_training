@@ -19,7 +19,7 @@ fn main() {
     let bucket = app::Bucket::new(vec!["test", "this", "and", "the", "next"]);
     let ui_constraint = app::ui::Constraint {
         dim: app::term_impl::term_dim().into(),
-        align: app::ui::Alignment::centered()
+        align: app::ui::Alignment::bottom_right()
     };
     let layout = app::ui::layout(&ui_constraint, &bucket).expect("cannot layout word in those constraints");
 

@@ -41,6 +41,13 @@ impl Alignment {
             hori: HAlignment::AlignLeft
         }
     }
+
+    pub fn bottom_right() -> Alignment {
+        Alignment {
+            vert: VAlignment::AlignBottom,
+            hori: HAlignment::AlignRight
+        }
+    }
 }
 
 
@@ -148,6 +155,7 @@ impl Constraint {
         let offset_y = match self.dim.height {
             Measurement::Infinite => 0,
             Measurement::Value(height) => {
+                debug_assert!(area_size.h <= height, format!("{} <= {}", area_size.h, height));
                 match self.align.vert {
                     VAlignment::AlignTop => 0,
                     VAlignment::AlignCenter => (height - area_size.h) / 2,
@@ -158,12 +166,12 @@ impl Constraint {
         bbox.y = offset_y;
 
         for ref mut pos in rough_pos.into_iter() {
-
             let row_length = rows_length[(pos.y - origin.y) as usize];
 
             let offset_x = match self.dim.width {
                 Measurement::Infinite => 0,
                 Measurement::Value(width) => {
+                    debug_assert!(row_length <= width, format!("{} <= {}", row_length, width));
                     match self.align.hori {
                         HAlignment::AlignLeft => 0,
                         HAlignment::AlignMiddle => (width - row_length) / 2,
@@ -244,8 +252,8 @@ impl Constraint {
             start_the_row = pos.y != start_y;
 
             if start_the_row {
-                let previous_row_length = start_x + last_len;
-                rows_length.push(previous_row_length);
+                let previous_row_length = start_x - gap;
+                rows_length.push(previous_row_length - origin.x);
                 right_side = max(right_side, previous_row_length);
             }
 
@@ -256,8 +264,8 @@ impl Constraint {
         let bottom_line;
         {
             let last_pos = planning.last().expect("not possible");
-            rows_length.push(last_pos.x + last_len);
-            bottom_line = last_pos.y;
+            rows_length.push(last_pos.x + last_len - origin.x);
+            bottom_line = last_pos.y - origin.y;
         }
 
         Ok((planning, Dim { w: right_side, h: bottom_line }, rows_length))
@@ -279,6 +287,7 @@ mod test {
         };
         let input_bucket = Bucket::new(vec!["larger"]);
         let index_of_word_larger = 0;
+
         assert_eq!(c.organize(&input_bucket), Err(LayoutError::TooWide(index_of_word_larger)));
     }
 
@@ -295,6 +304,7 @@ mod test {
         };
         let input_bucket = Bucket::new(vec!["fit", "stalker"]);
         let index_of_word_stalker = 1;
+
         assert_eq!(c.organize(&input_bucket), Err(LayoutError::TooManyWords(index_of_word_stalker)));
     }
 
@@ -310,6 +320,7 @@ mod test {
         };
         let input_bucket = Bucket::new(vec!["first", "second", "third"]);
         let expected_positions = vec![Pos { x: 1, y: 1 }, Pos { x: 7, y: 1 }, Pos { x: 1, y: 2 }];
+
         let final_positions = c.organize(&input_bucket).expect("positioning failed").0;
         assert_eq!(final_positions, expected_positions);
     }
@@ -327,6 +338,7 @@ mod test {
         };
         let input_bucket = Bucket::new(vec!["first", "second", "third"]);
         let expected_positions = vec![Pos { x: 1, y: 1 }, Pos { x: 7, y: 1 }, Pos { x: 14, y: 1 }];
+
         let final_positions = c.organize(&input_bucket).expect("positioning failed").0;
         assert_eq!(final_positions, expected_positions);
     }
@@ -343,7 +355,63 @@ mod test {
         };
         let input_bucket = Bucket::new(vec!["first", "second", "third"]);
         let expected_positions = vec![Pos { x: 1, y: 1 }, Pos { x: 1, y: 2 }, Pos { x: 1, y: 3 }];
+
         let final_positions = c.organize(&input_bucket).expect("positioning failed").0;
+        assert_eq!(final_positions, expected_positions);
+    }
+
+    #[test]
+    fn center_content() {
+        use super::*;
+        let offset_first_line = 2;
+        let width = offset_first_line + 5 + 1 + 6;
+        let offset_second_line = 1 + (width - 5) / 2;
+        let c = Constraint {
+            dim: AdaptativeDim {
+                height: Measurement::Infinite,
+                width: Measurement::Value(width as u16)
+            },
+            align: Alignment::centered()
+        };
+        let input_bucket = Bucket::new(vec!["first", "second", "third"]);
+        let expected_positions = vec![
+            Pos { x: offset_first_line, y: 1 },
+            Pos { x: offset_first_line + 5 + 1, y: 1 },
+            Pos { x: offset_second_line, y: 2 }];
+
+        let final_positions = c.organize(&input_bucket).expect("positioning failed").0;
+        assert_eq!(final_positions, expected_positions);
+    }
+
+    #[test]
+    fn opposite_align() {
+        use super::*;
+
+        // fixed inputs
+        let origin_x = 1;
+        let inputs = vec!["first", "second", "third"];
+        let gap = 1;
+        let offset_first_line : u16 = 2;
+
+        // deduced inputs
+        assert!(offset_first_line < inputs[2].len() as u16, "pre-condition failed");
+        let width = offset_first_line + inputs[0].len() as u16 + gap + inputs[1].len() as u16;
+        let offset_second_line : u16 = width - inputs[2].len() as u16;
+
+        let c = Constraint {
+            dim: AdaptativeDim {
+                height: Measurement::Infinite,
+                width: Measurement::Value(width as u16)
+            },
+            align: Alignment::bottom_right()
+        };
+        let expected_positions = vec![
+            Pos { x: origin_x + offset_first_line, y: 1 },
+            Pos { x: origin_x + offset_first_line + gap + inputs[0].len() as u16, y: 1 },
+            Pos { x: origin_x + offset_second_line, y: 2 }];
+
+        // test
+        let final_positions = c.organize(&Bucket::new(inputs)).expect("positioning failed").0;
         assert_eq!(final_positions, expected_positions);
     }
 }
