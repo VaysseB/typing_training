@@ -363,9 +363,18 @@ mod test {
     #[test]
     fn center_content() {
         use super::*;
-        let offset_first_line = 2;
-        let width = offset_first_line + 5 + 1 + 6;
-        let offset_second_line = 1 + (width - 5) / 2;
+
+        // fixed inputs
+        let origin_x = 1;
+        let inputs = vec!["first", "second", "third"];
+        let gap = 1;
+        let offset_first_line : u16 = 2;
+
+        // deduced inputs
+        let width = offset_first_line + inputs[0].len() as u16 + gap + inputs[1].len() as u16 + offset_first_line;
+        assert!(offset_first_line < inputs[2].len() as u16, "pre-condition failed");
+        let offset_second_line : u16 = (width - inputs[2].len() as u16) / 2;
+
         let c = Constraint {
             dim: AdaptativeDim {
                 height: Measurement::Infinite,
@@ -373,13 +382,13 @@ mod test {
             },
             align: Alignment::centered()
         };
-        let input_bucket = Bucket::new(vec!["first", "second", "third"]);
         let expected_positions = vec![
-            Pos { x: offset_first_line, y: 1 },
-            Pos { x: offset_first_line + 5 + 1, y: 1 },
-            Pos { x: offset_second_line, y: 2 }];
+            Pos { x: origin_x + offset_first_line, y: 1 },
+            Pos { x: origin_x + offset_first_line + gap + inputs[0].len() as u16, y: 1 },
+            Pos { x: origin_x + offset_second_line, y: 2 }];
 
-        let final_positions = c.organize(&input_bucket).expect("positioning failed").0;
+        // test
+        let final_positions = c.organize(&Bucket::new(inputs)).expect("positioning failed").0;
         assert_eq!(final_positions, expected_positions);
     }
 
