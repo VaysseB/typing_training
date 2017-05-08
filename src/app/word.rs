@@ -1,4 +1,7 @@
 
+use std::fmt;
+
+
 //---
 #[derive(Debug)]
 pub struct Word {
@@ -8,6 +11,12 @@ pub struct Word {
 impl Word {
     pub fn new(s: &'static str) -> Word {
         Word { raw: s.to_string() }
+    }
+}
+
+impl fmt::Display for Word {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", &self.raw)
     }
 }
 
