@@ -1,5 +1,5 @@
 use std::fmt;
-use std::cmp::max;
+use std::cmp::{max, min};
 
 use termion;
 
@@ -91,8 +91,11 @@ pub struct Pos {
 }
 
 impl Pos {
-    pub fn shift(&self, incrx: u16, incry: u16) -> Pos {
-        Pos { x: self.x - incrx, y: self.y - incry }
+    pub fn shift(&self, incrx: i16, incry: i16) -> Pos {
+        Pos {
+            x: (self.x as i16 + incrx) as u16,
+            y: (self.y as i16 + incry) as u16
+        }
     }
 }
 
@@ -122,6 +125,10 @@ pub struct Dim {
 impl Dim {
     pub fn shrink(&self, incrw: u16, incrh: u16) -> Dim {
         Dim { w: self.w - incrw, h: self.h - incrh }
+    }
+
+    pub fn grow(&self, incrw: u16, incrh: u16) -> Dim {
+        Dim { w: self.w + incrw, h: self.h + incrh }
     }
 }
 
@@ -185,11 +192,11 @@ impl Constraint {
     }
 
     fn align(&self, rough_pos: &mut Vec<Pos>, area_size: &Dim, rows_length: &Vec<u16>) -> BoundingBox {
-        let mut bbox = if rough_pos.len() == 0 {
-            BoundingBox { x: self.origin.x, y: self.origin.y, w: 0, h: 0 }
-        } else {
-            BoundingBox { x: u16::max_value(), y: u16::max_value(), w: 0, h: 0 }
-        };
+        if rough_pos.len() == 0 {
+            return BoundingBox { x: self.origin.x, y: self.origin.y, w: 0, h: 0 };
+        }
+
+        let mut bbox = BoundingBox { x: u16::max_value(), y: 0, w: 0, h: 0 };
 
         let offset_y = match self.dim.height {
             Measurement::Infinite => 0,
@@ -202,10 +209,14 @@ impl Constraint {
                 }
             }
         };
-        bbox.y = offset_y;
+        bbox.y = rough_pos.first().expect("not possible").y;
+        bbox.h = rough_pos.last().expect("not possible").y - bbox.y + 1;
+        bbox.y = bbox.y + offset_y;
 
         for ref mut pos in rough_pos.into_iter() {
             let row_length = rows_length[(pos.y - self.origin.y) as usize];
+
+            bbox.w = max(bbox.w, row_length);
 
             let offset_x = match self.dim.width {
                 Measurement::Infinite => 0,
@@ -218,6 +229,8 @@ impl Constraint {
                     }
                 }
             };
+
+            bbox.x = min(bbox.x, pos.x + offset_x);
 
             **pos = Pos {
                 x: pos.x + offset_x,
@@ -492,8 +505,28 @@ pub struct Layout {
     pub positions: Vec<Pos> // TODO keep it only visible inside the crate
 }
 
-pub fn layout(constraint: &Constraint, bucket: &Bucket, ) -> Result<Layout, LayoutError> {
+pub fn layout(constraint: &Constraint, bucket: &Bucket) -> Result<Layout, LayoutError> {
     let (poses, bbox) = try!(constraint.organize(bucket));
+
+    debug_assert!(bbox.x >= constraint.origin.x,
+    format!("post-condition failed on x ({} >= {})", bbox.x, constraint.origin.x));
+    debug_assert!(bbox.y >= constraint.origin.y,
+    format!("post-condition failed on y ({} >= {})", bbox.y, constraint.origin.y));
+    match constraint.dim.width {
+        Measurement::Value(w) => {
+            debug_assert!(bbox.w <= w,
+            format!("post-condition failed on w ({} <= {})", bbox.w, w));
+        }
+        _ => {}
+    }
+    match constraint.dim.height {
+        Measurement::Value(h) => {
+            debug_assert!(bbox.h <= h,
+            format!("post-condition failed on h ({} <= {})", bbox.h, h));
+        }
+        _ => {}
+    }
+
     Ok(Layout {
         frame: bbox,
         positions: poses

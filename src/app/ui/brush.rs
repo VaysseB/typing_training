@@ -37,6 +37,10 @@ pub fn write_vline(keycode: char, pos: &Pos, h: u16, output: &mut io::Write) -> 
 
 
 pub fn write_frame(pos: Pos, dim: Dim, output: &mut io::Write) -> io::Result<()> {
+    if dim.h == 0 || dim.w == 0 {
+        return Ok(());
+    }
+
     // top left
     try!(write_at(ACS_TLCORNER, &Pos {
         x: pos.x,
@@ -62,28 +66,37 @@ pub fn write_frame(pos: Pos, dim: Dim, output: &mut io::Write) -> io::Result<()>
     }, output));
 
     // top line
-    try!(write_hline(ACS_HLINE, &Pos {
-        x: pos.x,
-        y: pos.y
-    }, dim.w - 2 , output));
+    if dim.w > 1 {
+        try!(write_hline(ACS_HLINE, &Pos {
+            x: pos.x + 1,
+            y: pos.y
+        }, dim.w - 2, output));
 
-    // right line
-    try!(write_vline(ACS_VLINE, &Pos {
-        x: pos.x + dim.w - 1,
-        y: pos.y
-    }, dim.h - 2 , output));
+        // bottom line
+        try!(write_hline(ACS_HLINE, &Pos {
+            x: pos.x + 1,
+            y: pos.y + dim.h - 1
+        }, dim.w - 2 , output));
+    }
 
-    // bottom line
-    try!(write_hline(ACS_HLINE, &Pos {
-        x: pos.x + dim.w - 1,
-        y: pos.y + dim.h - 1
-    }, dim.w - 2 , output));
+    if dim.h > 1 {
+        // right line
+        try!(write_vline(ACS_VLINE, &Pos {
+            x: pos.x + dim.w - 1,
+            y: pos.y + 1
+        }, dim.h - 2, output));
 
-    // left line
-    try!(write_vline(ACS_VLINE, &Pos {
-        x: pos.x,
-        y: pos.y
-    }, dim.h - 2 , output));
+        // left line
+        try!(write_vline(ACS_VLINE, &Pos {
+            x: pos.x,
+            y: pos.y + 1
+        }, dim.h - 2, output));
+    }
 
     Ok(())
+}
+
+
+pub fn write_frame2(bbox: BoundingBox, gap: u16, output: &mut io::Write) -> io::Result<()> {
+    write_frame(bbox.pos().shift(-1 * gap as i16, -1 * gap as i16), bbox.dim().grow(gap * 2, gap * 2), output)
 }
